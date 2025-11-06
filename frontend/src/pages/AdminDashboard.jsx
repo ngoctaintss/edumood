@@ -55,7 +55,7 @@ const AdminDashboard = () => {
       setRewards(rewardsData);
       setGlobalStats(statsData);
     } catch (error) {
-      console.error('Failed to load data:', error);
+      console.error('Không thể tải dữ liệu:', error);
     }
   };
 
@@ -66,9 +66,9 @@ const AdminDashboard = () => {
       await createTeacher(teacherForm);
       setTeacherForm({ name: '', email: '', password: '' });
       loadAllData();
-      alert('Teacher created successfully!');
+      alert('Tạo giáo viên thành công!');
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to create teacher');
+      alert(error.response?.data?.message || 'Không thể tạo giáo viên');
     }
   };
 
@@ -79,20 +79,20 @@ const AdminDashboard = () => {
       setEditingTeacher(null);
       setTeacherForm({ name: '', email: '', password: '' });
       loadAllData();
-      alert('Teacher updated successfully!');
+      alert('Cập nhật giáo viên thành công!');
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to update teacher');
+      alert(error.response?.data?.message || 'Không thể cập nhật giáo viên');
     }
   };
 
   const handleDeleteTeacher = async (id) => {
-    if (window.confirm('Are you sure you want to delete this teacher?')) {
+    if (window.confirm('Bạn có chắc muốn xóa giáo viên này?')) {
       try {
         await deleteTeacher(id);
         loadAllData();
-        alert('Teacher deleted successfully!');
+        alert('Xóa giáo viên thành công!');
       } catch (error) {
-        alert(error.response?.data?.message || 'Failed to delete teacher');
+        alert(error.response?.data?.message || 'Không thể xóa giáo viên');
       }
     }
   };
@@ -104,9 +104,9 @@ const AdminDashboard = () => {
       await createClass(classForm);
       setClassForm({ name: '', teacherId: '' });
       loadAllData();
-      alert('Class created successfully!');
+      alert('Tạo lớp thành công!');
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to create class');
+      alert(error.response?.data?.message || 'Không thể tạo lớp');
     }
   };
 
@@ -120,20 +120,20 @@ const AdminDashboard = () => {
       setEditingClass(null);
       setClassForm({ name: '', teacherId: '' });
       loadAllData();
-      alert('Class updated successfully!');
+      alert('Cập nhật lớp thành công!');
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to update class');
+      alert(error.response?.data?.message || 'Không thể cập nhật lớp');
     }
   };
 
   const handleDeleteClass = async (id) => {
-    if (window.confirm('Are you sure? This will remove the class from all teachers.')) {
+    if (window.confirm('Bạn có chắc? Điều này sẽ xóa lớp khỏi tất cả giáo viên.')) {
       try {
         await deleteClass(id);
         loadAllData();
-        alert('Class deleted successfully!');
+        alert('Xóa lớp thành công!');
       } catch (error) {
-        alert(error.response?.data?.message || 'Failed to delete class');
+        alert(error.response?.data?.message || 'Không thể xóa lớp');
       }
     }
   };
@@ -145,9 +145,9 @@ const AdminDashboard = () => {
       await createReward(rewardForm);
       setRewardForm({ name: '', cost: 0, imageUrl: '', description: '' });
       loadAllData();
-      alert('Reward created successfully!');
+      alert('Tạo phần thưởng thành công!');
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to create reward');
+      alert(error.response?.data?.message || 'Không thể tạo phần thưởng');
     }
   };
 
@@ -158,29 +158,29 @@ const AdminDashboard = () => {
       setEditingReward(null);
       setRewardForm({ name: '', cost: 0, imageUrl: '', description: '' });
       loadAllData();
-      alert('Reward updated successfully!');
+      alert('Cập nhật phần thưởng thành công!');
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to update reward');
+      alert(error.response?.data?.message || 'Không thể cập nhật phần thưởng');
     }
   };
 
   const handleDeleteReward = async (id) => {
-    if (window.confirm('Are you sure you want to delete this reward?')) {
+    if (window.confirm('Bạn có chắc muốn xóa phần thưởng này?')) {
       try {
         await deleteReward(id);
         loadAllData();
-        alert('Reward deleted successfully!');
+        alert('Xóa phần thưởng thành công!');
       } catch (error) {
-        alert(error.response?.data?.message || 'Failed to delete reward');
+        alert(error.response?.data?.message || 'Không thể xóa phần thưởng');
       }
     }
   };
 
   const tabs = [
-    { id: 'teachers', label: 'Teachers', icon: GraduationCap },
-    { id: 'classes', label: 'Classes', icon: Users },
-    { id: 'rewards', label: 'Rewards', icon: Gift },
-    { id: 'stats', label: 'Statistics', icon: TrendingUp }
+    { id: 'teachers', label: 'Giáo Viên', icon: GraduationCap },
+    { id: 'classes', label: 'Lớp Học', icon: Users },
+    { id: 'rewards', label: 'Phần Thưởng', icon: Gift },
+    { id: 'stats', label: 'Thống Kê', icon: TrendingUp }
   ];
 
   return (
@@ -193,7 +193,7 @@ const AdminDashboard = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-4xl font-bold text-white mb-8 text-center"
         >
-          Admin Dashboard
+          Bảng Điều Khiển Quản Trị
         </motion.h1>
 
         {/* Tabs */}
@@ -229,14 +229,14 @@ const AdminDashboard = () => {
           <GlassCard>
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
               <GraduationCap className="w-7 h-7" />
-              Manage Teachers
+              Quản Lý Giáo Viên
             </h2>
 
             <form onSubmit={editingTeacher ? handleUpdateTeacher : handleCreateTeacher} className="glass-card p-4 mb-6 space-y-4">
-              <h3 className="text-white font-semibold">{editingTeacher ? 'Edit Teacher' : 'Add New Teacher'}</h3>
+              <h3 className="text-white font-semibold">{editingTeacher ? 'Chỉnh Sửa Giáo Viên' : 'Thêm Giáo Viên Mới'}</h3>
               <input
                 type="text"
-                placeholder="Name"
+                placeholder="Tên"
                 value={teacherForm.name}
                 onChange={(e) => setTeacherForm({ ...teacherForm, name: e.target.value })}
                 className="input-field"
@@ -253,7 +253,7 @@ const AdminDashboard = () => {
               />
               <input
                 type="password"
-                placeholder={editingTeacher ? 'New Password (leave blank to keep current)' : 'Password'}
+                placeholder={editingTeacher ? 'Mật khẩu mới (để trống để giữ nguyên)' : 'Mật khẩu'}
                 value={teacherForm.password}
                 onChange={(e) => setTeacherForm({ ...teacherForm, password: e.target.value })}
                 className="input-field"
@@ -261,7 +261,7 @@ const AdminDashboard = () => {
               />
               <div className="flex gap-2">
                 <button type="submit" className="btn-primary">
-                  {editingTeacher ? 'Update' : 'Create'}
+                  {editingTeacher ? 'Cập Nhật' : 'Tạo Mới'}
                 </button>
                 {editingTeacher && (
                   <button
@@ -272,7 +272,7 @@ const AdminDashboard = () => {
                     }}
                     className="btn-secondary"
                   >
-                    Cancel
+                    Hủy
                   </button>
                 )}
               </div>
@@ -284,7 +284,7 @@ const AdminDashboard = () => {
                   <div>
                     <h4 className="text-white font-semibold">{teacher.name}</h4>
                     <p className="text-white/60 text-sm">{teacher.email}</p>
-                    <p className="text-white/60 text-sm">{teacher.classIds?.length || 0} classes assigned</p>
+                    <p className="text-white/60 text-sm">{teacher.classIds?.length || 0} lớp được phân công</p>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -314,14 +314,14 @@ const AdminDashboard = () => {
           <GlassCard>
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
               <Users className="w-7 h-7" />
-              Manage Classes
+              Quản Lý Lớp Học
             </h2>
 
             <form onSubmit={editingClass ? handleUpdateClass : handleCreateClass} className="glass-card p-4 mb-6 space-y-4">
-              <h3 className="text-white font-semibold">{editingClass ? 'Edit Class' : 'Add New Class'}</h3>
+              <h3 className="text-white font-semibold">{editingClass ? 'Chỉnh Sửa Lớp' : 'Thêm Lớp Mới'}</h3>
               <input
                 type="text"
-                placeholder="Class Name"
+                placeholder="Tên Lớp"
                 value={classForm.name}
                 onChange={(e) => setClassForm({ ...classForm, name: e.target.value })}
                 className="input-field"
@@ -332,7 +332,7 @@ const AdminDashboard = () => {
                 onChange={(e) => setClassForm({ ...classForm, teacherId: e.target.value })}
                 className="input-field"
               >
-                <option value="">Select Teacher (Optional)</option>
+                <option value="">Chọn Giáo Viên (Tùy chọn)</option>
                 {teachers.map((teacher) => (
                   <option key={teacher._id} value={teacher._id} className="bg-gray-800">
                     {teacher.name}
@@ -341,7 +341,7 @@ const AdminDashboard = () => {
               </select>
               <div className="flex gap-2">
                 <button type="submit" className="btn-primary">
-                  {editingClass ? 'Update' : 'Create'}
+                  {editingClass ? 'Cập Nhật' : 'Tạo Mới'}
                 </button>
                 {editingClass && (
                   <button
@@ -352,7 +352,7 @@ const AdminDashboard = () => {
                     }}
                     className="btn-secondary"
                   >
-                    Cancel
+                    Hủy
                   </button>
                 )}
               </div>
@@ -364,10 +364,10 @@ const AdminDashboard = () => {
                   <div>
                     <h4 className="text-white font-semibold">{cls.name}</h4>
                     <p className="text-white/60 text-sm">
-                      Teacher: {cls.teacherId?.name || 'Not assigned'}
+                      Giáo viên: {cls.teacherId?.name || 'Chưa phân công'}
                     </p>
                     <p className="text-white/60 text-sm">
-                      Students: {cls.studentIds?.length || 0}
+                      Học sinh: {cls.studentIds?.length || 0}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -401,14 +401,14 @@ const AdminDashboard = () => {
           <GlassCard>
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
               <Gift className="w-7 h-7" />
-              Manage Rewards
+              Quản Lý Phần Thưởng
             </h2>
 
             <form onSubmit={editingReward ? handleUpdateReward : handleCreateReward} className="glass-card p-4 mb-6 space-y-4">
-              <h3 className="text-white font-semibold">{editingReward ? 'Edit Reward' : 'Add New Reward'}</h3>
+              <h3 className="text-white font-semibold">{editingReward ? 'Chỉnh Sửa Phần Thưởng' : 'Thêm Phần Thưởng Mới'}</h3>
               <input
                 type="text"
-                placeholder="Reward Name"
+                placeholder="Tên Phần Thưởng"
                 value={rewardForm.name}
                 onChange={(e) => setRewardForm({ ...rewardForm, name: e.target.value })}
                 className="input-field"
@@ -416,7 +416,7 @@ const AdminDashboard = () => {
               />
               <input
                 type="number"
-                placeholder="Cost (points)"
+                placeholder="Giá (điểm)"
                 value={rewardForm.cost}
                 onChange={(e) => setRewardForm({ ...rewardForm, cost: parseInt(e.target.value) })}
                 className="input-field"
@@ -424,13 +424,13 @@ const AdminDashboard = () => {
               />
               <input
                 type="text"
-                placeholder="Image URL (optional)"
+                placeholder="URL Hình Ảnh (tùy chọn)"
                 value={rewardForm.imageUrl}
                 onChange={(e) => setRewardForm({ ...rewardForm, imageUrl: e.target.value })}
                 className="input-field"
               />
               <textarea
-                placeholder="Description (optional)"
+                placeholder="Mô tả (tùy chọn)"
                 value={rewardForm.description}
                 onChange={(e) => setRewardForm({ ...rewardForm, description: e.target.value })}
                 className="input-field resize-none"
@@ -438,7 +438,7 @@ const AdminDashboard = () => {
               />
               <div className="flex gap-2">
                 <button type="submit" className="btn-primary">
-                  {editingReward ? 'Update' : 'Create'}
+                  {editingReward ? 'Cập Nhật' : 'Tạo Mới'}
                 </button>
                 {editingReward && (
                   <button
@@ -449,7 +449,7 @@ const AdminDashboard = () => {
                     }}
                     className="btn-secondary"
                   >
-                    Cancel
+                    Hủy
                   </button>
                 )}
               </div>
@@ -476,13 +476,13 @@ const AdminDashboard = () => {
                       }}
                       className="flex-1 py-2 glass-card hover:bg-white/20 rounded-lg text-white text-sm"
                     >
-                      Edit
+                      Sửa
                     </button>
                     <button
                       onClick={() => handleDeleteReward(reward._id)}
                       className="flex-1 py-2 glass-card hover:bg-red-500/20 rounded-lg text-red-400 text-sm"
                     >
-                      Delete
+                      Xóa
                     </button>
                   </div>
                 </div>
@@ -496,33 +496,42 @@ const AdminDashboard = () => {
           <GlassCard>
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
               <TrendingUp className="w-7 h-7" />
-              Global Statistics
+              Thống Kê Tổng Quan
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <div className="glass-card p-6 text-center">
                 <p className="text-4xl font-bold text-white mb-2">{globalStats.totalStudents}</p>
-                <p className="text-white/70">Total Students</p>
+                <p className="text-white/70">Tổng Số Học Sinh</p>
               </div>
               <div className="glass-card p-6 text-center">
                 <p className="text-4xl font-bold text-white mb-2">{globalStats.totalEmotions}</p>
-                <p className="text-white/70">Total Submissions</p>
+                <p className="text-white/70">Tổng Số Lượt Gửi</p>
               </div>
               <div className="glass-card p-6 text-center">
                 <p className="text-4xl font-bold text-white mb-2">{classes.length}</p>
-                <p className="text-white/70">Total Classes</p>
+                <p className="text-white/70">Tổng Số Lớp</p>
               </div>
             </div>
 
             <div className="glass-card p-6">
-              <h3 className="text-xl font-bold text-white mb-4">Emotion Distribution</h3>
+              <h3 className="text-xl font-bold text-white mb-4">Phân Bố Cảm Xúc</h3>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                {Object.entries(globalStats.emotionDistribution).map(([emotion, count]) => (
-                  <div key={emotion} className="text-center glass-card p-4 rounded-xl">
-                    <p className="text-3xl font-bold text-white mb-1">{count}</p>
-                    <p className="text-white/70 capitalize">{emotion}</p>
-                  </div>
-                ))}
+                {Object.entries(globalStats.emotionDistribution).map(([emotion, count]) => {
+                  const EMOTION_LABELS = {
+                    happy: 'Vui vẻ',
+                    neutral: 'Bình thường',
+                    sad: 'Buồn',
+                    angry: 'Giận dữ',
+                    tired: 'Mệt mỏi'
+                  };
+                  return (
+                    <div key={emotion} className="text-center glass-card p-4 rounded-xl">
+                      <p className="text-3xl font-bold text-white mb-1">{count}</p>
+                      <p className="text-white/70">{EMOTION_LABELS[emotion] || emotion}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </GlassCard>

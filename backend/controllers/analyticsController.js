@@ -118,8 +118,8 @@ export const getAIAnalysis = async (req, res) => {
     // Check if OpenAI is configured
     if (!process.env.OPENAI_API_KEY) {
       return res.json({
-        summary: 'AI Analysis is not configured. Please add OPENAI_API_KEY to your environment variables to enable this feature.',
-        suggestions: ['Configure OpenAI API key in .env file'],
+        summary: 'Phân tích AI chưa được cấu hình. Vui lòng thêm OPENAI_API_KEY vào biến môi trường để kích hoạt tính năng này.',
+        suggestions: ['Cấu hình OpenAI API key trong file .env'],
         emotionDistribution: {}
       });
     }
@@ -128,8 +128,8 @@ export const getAIAnalysis = async (req, res) => {
     const openaiClient = await getOpenAI();
     if (!openaiClient) {
       return res.json({
-        summary: 'AI Analysis is temporarily unavailable.',
-        suggestions: ['Please try again later'],
+        summary: 'Phân tích AI tạm thời không khả dụng.',
+        suggestions: ['Vui lòng thử lại sau'],
         emotionDistribution: {}
       });
     }
@@ -157,8 +157,8 @@ export const getAIAnalysis = async (req, res) => {
 
     if (emotions.length === 0) {
       return res.json({
-        summary: 'No emotion data available for analysis.',
-        suggestions: ['Encourage students to share their feelings daily.']
+        summary: 'Không có dữ liệu cảm xúc để phân tích.',
+        suggestions: ['Khuyến khích học sinh chia sẻ cảm xúc hàng ngày.']
       });
     }
 
@@ -194,27 +194,31 @@ export const getAIAnalysis = async (req, res) => {
       .map(e => `${e.emotion}: "${e.message}"`)
       .slice(0, 20); // Limit to 20 messages
 
-    // Create prompt for OpenAI
-    const prompt = `You are an educational psychologist analyzing elementary school students' emotional data.
+    // Create prompt for OpenAI (Vietnamese)
+    const dateRangeText = startDate && endDate 
+      ? `từ ${new Date(startDate).toLocaleDateString('vi-VN')} đến ${new Date(endDate).toLocaleDateString('vi-VN')}`
+      : '7 ngày qua';
 
-Emotion Distribution:
-- Happy: ${percentages.happy}% (${emotionCounts.happy} students)
-- Neutral: ${percentages.neutral}% (${emotionCounts.neutral} students)
-- Sad: ${percentages.sad}% (${emotionCounts.sad} students)
-- Angry: ${percentages.angry}% (${emotionCounts.angry} students)
-- Tired: ${percentages.tired}% (${emotionCounts.tired} students)
+    const prompt = `Bạn là một nhà tâm lý học giáo dục chuyên phân tích dữ liệu cảm xúc của học sinh tiểu học.
 
-Total Submissions: ${total}
-Date Range: ${startDate || '7 days ago'} to ${endDate || 'today'}
+Phân bố cảm xúc:
+- Vui vẻ: ${percentages.happy}% (${emotionCounts.happy} lượt)
+- Bình thường: ${percentages.neutral}% (${emotionCounts.neutral} lượt)
+- Buồn: ${percentages.sad}% (${emotionCounts.sad} lượt)
+- Giận dữ: ${percentages.angry}% (${emotionCounts.angry} lượt)
+- Mệt mỏi: ${percentages.tired}% (${emotionCounts.tired} lượt)
 
-${messages.length > 0 ? `Sample Student Messages:\n${messages.join('\n')}` : ''}
+Tổng số lượt gửi: ${total}
+Khoảng thời gian: ${dateRangeText}
 
-Please provide:
-1. A brief summary (2-3 sentences) of the overall emotional climate
-2. Key insights or patterns you notice
-3. 3-4 specific, actionable suggestions for the teacher to improve student wellbeing
+${messages.length > 0 ? `Một số tin nhắn của học sinh:\n${messages.join('\n')}` : ''}
 
-Keep your response professional, empathetic, and practical for elementary school teachers.`;
+Vui lòng cung cấp phân tích bằng tiếng Việt với định dạng rõ ràng:
+1. Tóm tắt ngắn gọn (2-3 câu) về bầu không khí cảm xúc tổng thể
+2. Các insights và mẫu hành vi bạn nhận thấy
+3. 3-4 gợi ý cụ thể và thực tế cho giáo viên để cải thiện sức khỏe tinh thần của học sinh
+
+Hãy trình bày chuyên nghiệp, đồng cảm và thực tế cho giáo viên tiểu học. Sử dụng tiếng Việt tự nhiên và dễ hiểu.`;
 
     // Call OpenAI API
     const completion = await openaiClient.chat.completions.create({
@@ -222,7 +226,7 @@ Keep your response professional, empathetic, and practical for elementary school
       messages: [
         {
           role: "system",
-          content: "You are an expert educational psychologist specializing in elementary school student wellbeing."
+          content: "Bạn là một chuyên gia tâm lý học giáo dục chuyên về sức khỏe tinh thần của học sinh tiểu học. Bạn luôn trả lời bằng tiếng Việt một cách tự nhiên và chuyên nghiệp."
         },
         {
           role: "user",
@@ -230,7 +234,7 @@ Keep your response professional, empathetic, and practical for elementary school
         }
       ],
       temperature: 0.7,
-      max_tokens: 500
+      max_tokens: 600
     });
 
     const aiResponse = completion.choices[0].message.content;
@@ -250,9 +254,9 @@ Keep your response professional, empathetic, and practical for elementary school
     
     // Fallback response if OpenAI fails
     res.status(200).json({
-      summary: 'AI analysis temporarily unavailable. Please check your OpenAI API key and try again. Error: ' + error.message,
+      summary: 'Phân tích AI tạm thời không khả dụng. Vui lòng kiểm tra OpenAI API key và thử lại. Lỗi: ' + error.message,
       emotionDistribution: {},
-      error: 'OpenAI API error'
+      error: 'Lỗi OpenAI API'
     });
   }
 };
