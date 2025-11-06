@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-[#9B5DE5] via-[#F15BB5] to-[#00BBF9] min-h-screen font-sans;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl;
+  }
+
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold 
+           hover:from-purple-600 hover:to-pink-600 transform hover:scale-105 transition-all duration-300
+           shadow-lg hover:shadow-xl;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 glass-card text-white rounded-xl font-semibold 
+           hover:bg-white/20 transform hover:scale-105 transition-all duration-300;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 glass-card text-white placeholder-white/60 rounded-xl 
+           focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all;
+  }
+
+  .emoji-btn {
+    @apply text-6xl transition-all duration-300 transform hover:scale-125 hover:rotate-12 cursor-pointer;
+  }
+
+  .nav-link {
+    @apply text-white/80 hover:text-white transition-colors px-4 py-2 rounded-lg hover:bg-white/10;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+/* Loading spinner */
+.spinner {
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
