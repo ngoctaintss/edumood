@@ -1,10 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { axiosInstance } from '../utils/api';
 
 const AuthContext = createContext();
-
-// Get API base URL from environment variable
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -23,12 +20,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
-    delete axios.defaults.headers.common['Authorization'];
   }, []);
 
   const loadUser = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/auth/me`);
+      const response = await axiosInstance.get('/auth/me');
       setUser(response.data);
     } catch (error) {
       console.error('Failed to load user:', error);
@@ -38,10 +34,9 @@ export const AuthProvider = ({ children }) => {
     }
   }, [logout]);
 
-  // Set axios default authorization header
+  // Load user when token is available
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       loadUser();
     } else {
       setLoading(false);
@@ -50,7 +45,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (identifier, password, role) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+      const response = await axiosInstance.post('/auth/login', {
         identifier,
         password,
         role
