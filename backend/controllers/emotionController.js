@@ -1,5 +1,7 @@
 import Emotion from '../models/Emotion.js';
 import Student from '../models/Student.js';
+import Streak from '../models/Streak.js';
+import Milestone from '../models/Milestone.js';
 
 // Lazy load OpenAI only when needed
 let openai = null;
@@ -53,16 +55,128 @@ export const submitEmotion = async (req, res) => {
     });
 
     // Award points to student (e.g., 10 points per submission)
-    await Student.findByIdAndUpdate(req.user._id, {
+    const updatedStudent = await Student.findByIdAndUpdate(req.user._id, {
       $inc: { points: 10 }
-    });
+    }, { new: true });
+
+    // Update streak
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let streak = await Streak.findOne({ studentId: req.user._id });
+    let milestoneAchieved = null;
+    let milestoneReward = null;
+
+    if (!streak) {
+      // Create new streak
+      streak = await Streak.create({
+        studentId: req.user._id,
+        currentStreak: 1,
+        longestStreak: 1,
+        lastSubmissionDate: today,
+        totalSubmissions: 1
+      });
+    } else {
+      const lastSubmissionDate = streak.lastSubmissionDate 
+        ? new Date(streak.lastSubmissionDate)
+        : null;
+      
+      if (lastSubmissionDate) {
+        lastSubmissionDate.setHours(0, 0, 0, 0);
+      }
+
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      if (!lastSubmissionDate) {
+        // First submission ever
+        streak.currentStreak = 1;
+      } else if (lastSubmissionDate.getTime() === today.getTime()) {
+        // Already submitted today, shouldn't happen due to rate limit, but just in case
+        streak.currentStreak = streak.currentStreak;
+      } else if (lastSubmissionDate.getTime() === yesterday.getTime()) {
+        // Consecutive day - increment streak
+        streak.currentStreak += 1;
+      } else {
+        // Streak broken - reset to 1
+        streak.currentStreak = 1;
+      }
+
+      // Update longest streak
+      if (streak.currentStreak > streak.longestStreak) {
+        streak.longestStreak = streak.currentStreak;
+      }
+
+      streak.lastSubmissionDate = today;
+      streak.totalSubmissions += 1;
+
+      // Check for milestones
+      const milestones = await Milestone.find({ 
+        isActive: true,
+        dayCount: streak.currentStreak
+      }).sort({ order: 1 });
+
+      if (milestones.length > 0) {
+        const milestone = milestones[0]; // Get first matching milestone
+        
+        // Check if student already achieved this milestone
+        const alreadyAchieved = streak.milestonesAchieved.some(
+          m => m.milestoneId.toString() === milestone._id.toString()
+        );
+
+        if (!alreadyAchieved) {
+          // Award milestone
+          milestoneAchieved = milestone;
+          
+          // Add milestone to achieved list
+          streak.milestonesAchieved.push({
+            milestoneId: milestone._id,
+            achievedAt: new Date()
+          });
+
+          // Award points if any
+          if (milestone.rewardPoints > 0) {
+            await Student.findByIdAndUpdate(req.user._id, {
+              $inc: { points: milestone.rewardPoints }
+            });
+            milestoneReward = {
+              points: milestone.rewardPoints,
+              totalPoints: updatedStudent.points + milestone.rewardPoints
+            };
+          }
+        }
+      }
+
+      await streak.save();
+    }
 
     const populatedEmotion = await Emotion.findById(emotionRecord._id)
       .populate('studentId', 'name studentId');
 
+    // Prepare response message
+    let responseMessage = 'Gửi cảm xúc thành công! Bạn nhận được 10 điểm! 🌟';
+    if (milestoneAchieved) {
+      responseMessage += `\n🎉 Chúc mừng! Bạn đã đạt milestone ${milestoneAchieved.dayCount} ngày liên tiếp! ${milestoneAchieved.icon}`;
+      if (milestoneReward && milestoneReward.points > 0) {
+        responseMessage += `\nBạn nhận thêm ${milestoneReward.points} điểm!`;
+      }
+    }
+
     res.status(201).json({
       emotion: populatedEmotion,
-      message: 'Gửi cảm xúc thành công! Bạn nhận được 10 điểm! 🌟'
+      message: responseMessage,
+      streak: {
+        currentStreak: streak.currentStreak,
+        longestStreak: streak.longestStreak,
+        totalSubmissions: streak.totalSubmissions
+      },
+      milestoneAchieved: milestoneAchieved ? {
+        name: milestoneAchieved.name,
+        description: milestoneAchieved.description,
+        dayCount: milestoneAchieved.dayCount,
+        icon: milestoneAchieved.icon,
+        rewardPoints: milestoneReward?.points || 0
+      } : null
     });
   } catch (error) {
     console.error(error);

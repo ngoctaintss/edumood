@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import GlassCard from '../components/GlassCard';
 import { 
-  Users, GraduationCap, Gift, Plus, Trash2, Edit2, TrendingUp 
+  Users, GraduationCap, Gift, Plus, Trash2, Edit2, TrendingUp, Trophy
 } from 'lucide-react';
 import {
   getAllTeachers,
@@ -19,7 +19,11 @@ import {
   createReward,
   updateReward,
   deleteReward,
-  getGlobalAnalytics
+  getGlobalAnalytics,
+  getMilestones,
+  createMilestone,
+  updateMilestone,
+  deleteMilestone
 } from '../utils/api';
 
 const AdminDashboard = () => {
@@ -27,15 +31,28 @@ const AdminDashboard = () => {
   const [teachers, setTeachers] = useState([]);
   const [classes, setClasses] = useState([]);
   const [rewards, setRewards] = useState([]);
+  const [milestones, setMilestones] = useState([]);
   const [globalStats, setGlobalStats] = useState(null);
   
   const [teacherForm, setTeacherForm] = useState({ name: '', email: '', password: '' });
   const [classForm, setClassForm] = useState({ name: '', teacherId: '' });
   const [rewardForm, setRewardForm] = useState({ name: '', cost: 0, imageUrl: '', description: '' });
+  const [milestoneForm, setMilestoneForm] = useState({ 
+    name: '', 
+    description: '', 
+    dayCount: 1, 
+    rewardPoints: 0, 
+    rewardMessage: '', 
+    icon: '🏆', 
+    color: '#FFD700',
+    order: 1,
+    isActive: true
+  });
   
   const [editingTeacher, setEditingTeacher] = useState(null);
   const [editingClass, setEditingClass] = useState(null);
   const [editingReward, setEditingReward] = useState(null);
+  const [editingMilestone, setEditingMilestone] = useState(null);
 
   useEffect(() => {
     loadAllData();
@@ -43,16 +60,18 @@ const AdminDashboard = () => {
 
   const loadAllData = async () => {
     try {
-      const [teachersData, classesData, rewardsData, statsData] = await Promise.all([
+      const [teachersData, classesData, rewardsData, milestonesData, statsData] = await Promise.all([
         getAllTeachers(),
         getAllClasses(),
         getAllRewards(),
+        getMilestones(),
         getGlobalAnalytics()
       ]);
       
       setTeachers(teachersData);
       setClasses(classesData);
       setRewards(rewardsData);
+      setMilestones(milestonesData);
       setGlobalStats(statsData);
     } catch (error) {
       console.error('Không thể tải dữ liệu:', error);
@@ -176,10 +195,69 @@ const AdminDashboard = () => {
     }
   };
 
+  // Milestone Management
+  const handleCreateMilestone = async (e) => {
+    e.preventDefault();
+    try {
+      await createMilestone(milestoneForm);
+      setMilestoneForm({ 
+        name: '', 
+        description: '', 
+        dayCount: 1, 
+        rewardPoints: 0, 
+        rewardMessage: '', 
+        icon: '🏆', 
+        color: '#FFD700',
+        order: 1,
+        isActive: true
+      });
+      loadAllData();
+      alert('Tạo milestone thành công!');
+    } catch (error) {
+      alert(error.response?.data?.message || 'Không thể tạo milestone');
+    }
+  };
+
+  const handleUpdateMilestone = async (e) => {
+    e.preventDefault();
+    try {
+      await updateMilestone(editingMilestone._id, milestoneForm);
+      setEditingMilestone(null);
+      setMilestoneForm({ 
+        name: '', 
+        description: '', 
+        dayCount: 1, 
+        rewardPoints: 0, 
+        rewardMessage: '', 
+        icon: '🏆', 
+        color: '#FFD700',
+        order: 1,
+        isActive: true
+      });
+      loadAllData();
+      alert('Cập nhật milestone thành công!');
+    } catch (error) {
+      alert(error.response?.data?.message || 'Không thể cập nhật milestone');
+    }
+  };
+
+  const handleDeleteMilestone = async (id) => {
+    if (window.confirm('Bạn có chắc muốn xóa milestone này?')) {
+      try {
+        await deleteMilestone(id);
+        loadAllData();
+        alert('Xóa milestone thành công!');
+      } catch (error) {
+        alert(error.response?.data?.message || 'Không thể xóa milestone');
+      }
+    }
+  };
+
   const tabs = [
     { id: 'teachers', label: 'Giáo Viên', icon: GraduationCap },
     { id: 'classes', label: 'Lớp Học', icon: Users },
     { id: 'rewards', label: 'Phần Thưởng', icon: Gift },
+    { id: 'milestones', label: 'Milestones', icon: Trophy },
     { id: 'stats', label: 'Thống Kê', icon: TrendingUp }
   ];
 
@@ -487,6 +565,170 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </GlassCard>
+        )}
+
+        {/* Milestones Tab */}
+        {activeTab === 'milestones' && (
+          <GlassCard>
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <Trophy className="w-7 h-7" />
+              Quản Lý Milestones
+            </h2>
+
+            <form onSubmit={editingMilestone ? handleUpdateMilestone : handleCreateMilestone} className="glass-card p-4 mb-6 space-y-4">
+              <h3 className="text-white font-semibold">{editingMilestone ? 'Chỉnh Sửa Milestone' : 'Thêm Milestone Mới'}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  placeholder="Tên Milestone"
+                  value={milestoneForm.name}
+                  onChange={(e) => setMilestoneForm({ ...milestoneForm, name: e.target.value })}
+                  className="input-field"
+                  required
+                />
+                <input
+                  type="number"
+                  placeholder="Số ngày"
+                  value={milestoneForm.dayCount}
+                  onChange={(e) => setMilestoneForm({ ...milestoneForm, dayCount: parseInt(e.target.value) })}
+                  className="input-field"
+                  required
+                  min="1"
+                />
+                <textarea
+                  placeholder="Mô tả (tùy chọn)"
+                  value={milestoneForm.description}
+                  onChange={(e) => setMilestoneForm({ ...milestoneForm, description: e.target.value })}
+                  className="input-field resize-none"
+                  rows="2"
+                />
+                <input
+                  type="number"
+                  placeholder="Điểm thưởng"
+                  value={milestoneForm.rewardPoints}
+                  onChange={(e) => setMilestoneForm({ ...milestoneForm, rewardPoints: parseInt(e.target.value) || 0 })}
+                  className="input-field"
+                  min="0"
+                />
+                <input
+                  type="text"
+                  placeholder="Icon (emoji)"
+                  value={milestoneForm.icon}
+                  onChange={(e) => setMilestoneForm({ ...milestoneForm, icon: e.target.value })}
+                  className="input-field"
+                  maxLength="2"
+                />
+                <input
+                  type="text"
+                  placeholder="Màu sắc (hex)"
+                  value={milestoneForm.color}
+                  onChange={(e) => setMilestoneForm({ ...milestoneForm, color: e.target.value })}
+                  className="input-field"
+                />
+                <input
+                  type="number"
+                  placeholder="Thứ tự hiển thị"
+                  value={milestoneForm.order}
+                  onChange={(e) => setMilestoneForm({ ...milestoneForm, order: parseInt(e.target.value) || 1 })}
+                  className="input-field"
+                  min="0"
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    checked={milestoneForm.isActive}
+                    onChange={(e) => setMilestoneForm({ ...milestoneForm, isActive: e.target.checked })}
+                    className="w-5 h-5"
+                  />
+                  <label htmlFor="isActive" className="text-white">Kích hoạt</label>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" className="btn-primary">
+                  {editingMilestone ? 'Cập Nhật' : 'Tạo Mới'}
+                </button>
+                {editingMilestone && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingMilestone(null);
+                      setMilestoneForm({ 
+                        name: '', 
+                        description: '', 
+                        dayCount: 1, 
+                        rewardPoints: 0, 
+                        rewardMessage: '', 
+                        icon: '🏆', 
+                        color: '#FFD700',
+                        order: 1,
+                        isActive: true
+                      });
+                    }}
+                    className="btn-secondary"
+                  >
+                    Hủy
+                  </button>
+                )}
+              </div>
+            </form>
+
+            <div className="space-y-3">
+              {milestones.sort((a, b) => (a.order || 0) - (b.order || 0) || a.dayCount - b.dayCount).map((milestone) => (
+                <div key={milestone._id} className="glass-card p-4 flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <div className="text-4xl">{milestone.icon || '🏆'}</div>
+                    <div>
+                      <h4 className="text-white font-semibold">{milestone.name}</h4>
+                      <p className="text-white/60 text-sm">{milestone.description || `Milestone ${milestone.dayCount} ngày`}</p>
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className="text-yellow-400 text-sm">📅 {milestone.dayCount} ngày</span>
+                        {milestone.rewardPoints > 0 && (
+                          <span className="text-green-400 text-sm">⭐ +{milestone.rewardPoints} điểm</span>
+                        )}
+                        <span className={`text-xs px-2 py-1 rounded ${milestone.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                          {milestone.isActive ? 'Đang hoạt động' : 'Đã tắt'}
+                        </span>
+                        <span className="text-white/40 text-xs">Thứ tự: {milestone.order || 0}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setEditingMilestone(milestone);
+                        setMilestoneForm({
+                          name: milestone.name,
+                          description: milestone.description || '',
+                          dayCount: milestone.dayCount,
+                          rewardPoints: milestone.rewardPoints || 0,
+                          rewardMessage: milestone.rewardMessage || '',
+                          icon: milestone.icon || '🏆',
+                          color: milestone.color || '#FFD700',
+                          order: milestone.order || milestone.dayCount,
+                          isActive: milestone.isActive !== undefined ? milestone.isActive : true
+                        });
+                      }}
+                      className="p-2 glass-card hover:bg-white/20 rounded-lg"
+                    >
+                      <Edit2 className="w-5 h-5 text-white" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteMilestone(milestone._id)}
+                      className="p-2 glass-card hover:bg-red-500/20 rounded-lg"
+                    >
+                      <Trash2 className="w-5 h-5 text-red-400" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {milestones.length === 0 && (
+                <p className="text-white/70 text-center py-8">
+                  Chưa có milestones nào. Hãy tạo milestone đầu tiên!
+                </p>
+              )}
             </div>
           </GlassCard>
         )}

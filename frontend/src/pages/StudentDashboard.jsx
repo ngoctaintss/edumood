@@ -6,8 +6,8 @@ import Navbar from '../components/Navbar';
 import GlassCard from '../components/GlassCard';
 import EmojiSelector from '../components/EmojiSelector';
 import RewardCard from '../components/RewardCard';
-import { Star, Send, Gift, Lock, X, Heart, Calendar } from 'lucide-react';
-import { submitEmotion, getAllRewards, redeemReward, changePassword, getEncouragement, getStudentEmotions7Days } from '../utils/api';
+import { Star, Send, Gift, Lock, X, Heart, Calendar, Flame, Trophy, Target } from 'lucide-react';
+import { submitEmotion, getAllRewards, redeemReward, changePassword, getEncouragement, getStudentEmotions7Days, getStreak, getMilestones } from '../utils/api';
 
 const StudentDashboard = () => {
   const { user, updateUser } = useAuth();
@@ -30,9 +30,16 @@ const StudentDashboard = () => {
   const [emotionHistory, setEmotionHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [streak, setStreak] = useState(null);
+  const [milestones, setMilestones] = useState([]);
+  const [loadingStreak, setLoadingStreak] = useState(false);
+  const [milestoneAchieved, setMilestoneAchieved] = useState(null);
+  const [showMilestoneModal, setShowMilestoneModal] = useState(false);
 
   useEffect(() => {
     loadRewards();
+    loadStreak();
+    loadMilestones();
   }, []);
 
   useEffect(() => {
@@ -65,6 +72,27 @@ const StudentDashboard = () => {
     }
   };
 
+  const loadStreak = async () => {
+    setLoadingStreak(true);
+    try {
+      const data = await getStreak();
+      setStreak(data);
+    } catch (error) {
+      console.error('Không thể tải streak:', error);
+    } finally {
+      setLoadingStreak(false);
+    }
+  };
+
+  const loadMilestones = async () => {
+    try {
+      const data = await getMilestones();
+      setMilestones(data);
+    } catch (error) {
+      console.error('Không thể tải milestones:', error);
+    }
+  };
+
   const handleSubmitEmotion = async () => {
     if (!selectedEmotion) {
       alert('Vui lòng chọn cảm xúc!');
@@ -87,8 +115,31 @@ const StudentDashboard = () => {
         origin: { y: 0.6 }
       });
 
-      // Update user points
-      updateUser({ points: (user.points || 0) + 10 });
+      // Update user points (including milestone rewards if any)
+      const totalPoints = (user.points || 0) + 10 + (result.milestoneAchieved?.rewardPoints || 0);
+      updateUser({ points: totalPoints });
+
+      // Update streak info
+      if (result.streak) {
+        setStreak({
+          currentStreak: result.streak.currentStreak,
+          longestStreak: result.streak.longestStreak,
+          totalSubmissions: result.streak.totalSubmissions,
+          milestonesAchieved: streak?.milestonesAchieved || []
+        });
+      }
+
+      // Show milestone achievement if any
+      if (result.milestoneAchieved) {
+        setMilestoneAchieved(result.milestoneAchieved);
+        setShowMilestoneModal(true);
+        // Trigger extra confetti for milestone
+        confetti({
+          particleCount: 200,
+          spread: 100,
+          origin: { y: 0.6 }
+        });
+      }
 
       setSuccessMessage(result.message);
       
@@ -110,6 +161,9 @@ const StudentDashboard = () => {
       } finally {
         setLoadingEncouragement(false);
       }
+
+      // Reload streak to get updated milestones
+      loadStreak();
 
       setTimeout(() => setSuccessMessage(''), 5000);
     } catch (error) {
@@ -195,10 +249,217 @@ const StudentDashboard = () => {
             className="mb-6 max-w-2xl mx-auto"
           >
             <GlassCard className="bg-green-500/20 border-green-400">
-              <p className="text-white text-center font-semibold">{successMessage}</p>
+              <p className="text-white text-center font-semibold whitespace-pre-line">{successMessage}</p>
             </GlassCard>
           </motion.div>
         )}
+
+        {/* Milestone Achievement Modal */}
+        {showMilestoneModal && milestoneAchieved && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowMilestoneModal(false)}
+          >
+            <motion.div
+              initial={{ y: 50 }}
+              animate={{ y: 0 }}
+              className="glass-card max-w-md w-full p-8 rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-br from-yellow-500/30 to-orange-500/30"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-center">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                  className="text-8xl mb-4"
+                >
+                  {milestoneAchieved.icon || '🏆'}
+                </motion.div>
+                <h2 className="text-3xl font-bold text-white mb-2">
+                  🎉 Chúc Mừng! 🎉
+                </h2>
+                <h3 className="text-xl font-bold text-yellow-300 mb-2">
+                  {milestoneAchieved.name}
+                </h3>
+                <p className="text-white/90 mb-4">
+                  {milestoneAchieved.description || `Bạn đã duy trì ${milestoneAchieved.dayCount} ngày liên tiếp!`}
+                </p>
+                {milestoneAchieved.rewardPoints > 0 && (
+                  <div className="flex items-center justify-center gap-2 text-xl text-yellow-300 font-bold mb-4">
+                    <Star className="w-6 h-6 fill-yellow-300" />
+                    <span>+{milestoneAchieved.rewardPoints} Điểm Thưởng!</span>
+                  </div>
+                )}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowMilestoneModal(false)}
+                  className="btn-primary w-full"
+                >
+                  Tuyệt Vời!
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Streak & Journey Section */}
+        <div className="max-w-4xl mx-auto mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Streak Card */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="glass-card p-6 rounded-2xl bg-gradient-to-br from-orange-500/20 to-red-500/20 border-orange-400/30"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Flame className="w-6 h-6 text-orange-400" />
+                Chuỗi Ngày Liên Tiếp
+              </h3>
+            </div>
+            {loadingStreak ? (
+              <div className="flex justify-center py-8">
+                <div className="spinner w-8 h-8 border-2"></div>
+              </div>
+            ) : streak ? (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-3 mb-2">
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ repeat: Infinity, duration: 2 }}
+                      className="text-6xl"
+                    >
+                      🔥
+                    </motion.div>
+                    <div>
+                      <div className="text-5xl font-bold text-orange-400">
+                        {streak.currentStreak}
+                      </div>
+                      <div className="text-white/70 text-sm">ngày</div>
+                    </div>
+                  </div>
+                  <p className="text-white/80 text-sm">
+                    Kỷ lục: {streak.longestStreak} ngày
+                  </p>
+                  <p className="text-white/70 text-xs mt-2">
+                    Tổng: {streak.totalSubmissions} lần chia sẻ
+                  </p>
+                </div>
+                {streak.currentStreak > 0 && (
+                  <div className="mt-4 p-3 bg-white/10 rounded-lg">
+                    <p className="text-white/90 text-sm text-center">
+                      💪 Tiếp tục duy trì! Hãy quay lại ngày mai để tiếp tục chuỗi ngày của bạn!
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-white/70 text-center py-4">
+                Bắt đầu chuỗi ngày của bạn ngay hôm nay! 🚀
+              </p>
+            )}
+          </motion.div>
+
+          {/* Milestones Journey */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="glass-card p-6 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-400/30"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Trophy className="w-6 h-6 text-yellow-400" />
+                Hành Trình
+              </h3>
+            </div>
+            {milestones.length === 0 ? (
+              <p className="text-white/70 text-center py-4">
+                Chưa có cột mốc nào được chinh phục
+              </p>
+            ) : (
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {milestones.map((milestone) => {
+                  const isAchieved = streak?.milestonesAchieved?.some(
+                    m => {
+                      const milestoneId = m.milestoneId?._id || m.milestoneId;
+                      return milestoneId === milestone._id;
+                    }
+                  );
+                  const currentStreak = streak?.currentStreak || 0;
+                  const progress = currentStreak > 0 ? Math.min((currentStreak / milestone.dayCount) * 100, 100) : 0;
+                  const isNext = !isAchieved && currentStreak < milestone.dayCount;
+                  const isInProgress = !isAchieved && currentStreak > 0 && currentStreak < milestone.dayCount;
+
+                  return (
+                    <motion.div
+                      key={milestone._id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`p-3 rounded-lg border-2 ${
+                        isAchieved
+                          ? 'bg-yellow-500/30 border-yellow-400'
+                          : isInProgress
+                          ? 'bg-blue-500/20 border-blue-400'
+                          : 'bg-white/5 border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="text-3xl flex-shrink-0">
+                          {isAchieved ? milestone.icon : isInProgress ? '🎯' : '🔒'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`font-bold text-sm ${
+                              isAchieved ? 'text-yellow-300' : isInProgress ? 'text-blue-300' : 'text-white/70'
+                            }`}>
+                              {milestone.name}
+                            </span>
+                            <span className="text-xs text-white/60">
+                              {milestone.dayCount} ngày
+                            </span>
+                          </div>
+                          <div className="w-full bg-white/10 rounded-full h-2 mb-1">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${progress}%` }}
+                              transition={{ duration: 0.5 }}
+                              className={`h-2 rounded-full ${
+                                isAchieved
+                                  ? 'bg-yellow-400'
+                                  : isInProgress
+                                  ? 'bg-blue-400'
+                                  : 'bg-white/30'
+                              }`}
+                            />
+                          </div>
+                          {isNext && currentStreak > 0 && (
+                            <p className="text-xs text-white/60">
+                              Còn {milestone.dayCount - currentStreak} ngày nữa
+                            </p>
+                          )}
+                          {isNext && currentStreak === 0 && (
+                            <p className="text-xs text-white/60">
+                              Bắt đầu ngay hôm nay!
+                            </p>
+                          )}
+                          {isAchieved && milestone.rewardPoints > 0 && (
+                            <p className="text-xs text-yellow-300 mt-1">
+                              ⭐ +{milestone.rewardPoints} điểm
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        </div>
 
         {/* Emotion Submission */}
         <div className="max-w-3xl mx-auto mb-8">

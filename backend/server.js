@@ -13,6 +13,8 @@ import classRoutes from './routes/classRoutes.js';
 import emotionRoutes from './routes/emotionRoutes.js';
 import rewardRoutes from './routes/rewardRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
+import streakRoutes from './routes/streakRoutes.js';
+import milestoneRoutes from './routes/milestoneRoutes.js';
 
 // Load env vars
 dotenv.config();
@@ -70,6 +72,8 @@ app.use('/api/classes', classRoutes);
 app.use('/api/emotions', emotionRoutes);
 app.use('/api/rewards', rewardRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/streak', streakRoutes);
+app.use('/api/milestones', milestoneRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
