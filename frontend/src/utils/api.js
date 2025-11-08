@@ -49,6 +49,16 @@ export const getStudentEmotions = async (studentId) => {
   return response.data;
 };
 
+export const getStudentEmotions7Days = async (studentId) => {
+  const response = await axiosInstance.get(`/emotions/student/${studentId}/7days`);
+  return response.data;
+};
+
+export const getEncouragement = async (emotion, message) => {
+  const response = await axiosInstance.post('/emotions/encouragement', { emotion, message });
+  return response.data;
+};
+
 // Teacher APIs
 export const getStudentsByClass = async (classId) => {
   const response = await axiosInstance.get(`/students/class/${classId}`);

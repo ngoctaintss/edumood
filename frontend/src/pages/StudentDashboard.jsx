@@ -6,8 +6,8 @@ import Navbar from '../components/Navbar';
 import GlassCard from '../components/GlassCard';
 import EmojiSelector from '../components/EmojiSelector';
 import RewardCard from '../components/RewardCard';
-import { Star, Send, Gift, Lock, X } from 'lucide-react';
-import { submitEmotion, getAllRewards, redeemReward, changePassword } from '../utils/api';
+import { Star, Send, Gift, Lock, X, Heart, Calendar } from 'lucide-react';
+import { submitEmotion, getAllRewards, redeemReward, changePassword, getEncouragement, getStudentEmotions7Days } from '../utils/api';
 
 const StudentDashboard = () => {
   const { user, updateUser } = useAuth();
@@ -24,10 +24,22 @@ const StudentDashboard = () => {
     confirmPassword: ''
   });
   const [changingPassword, setChangingPassword] = useState(false);
+  const [encouragement, setEncouragement] = useState('');
+  const [loadingEncouragement, setLoadingEncouragement] = useState(false);
+  const [showEncouragement, setShowEncouragement] = useState(false);
+  const [emotionHistory, setEmotionHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     loadRewards();
   }, []);
+
+  useEffect(() => {
+    if (showHistory && user?._id) {
+      loadEmotionHistory();
+    }
+  }, [showHistory, user?._id]);
 
   const loadRewards = async () => {
     try {
@@ -35,6 +47,21 @@ const StudentDashboard = () => {
       setRewards(data);
     } catch (error) {
       console.error('Không thể tải phần thưởng:', error);
+    }
+  };
+
+  const loadEmotionHistory = async () => {
+    if (!user?._id) return;
+    
+    setLoadingHistory(true);
+    try {
+      const data = await getStudentEmotions7Days(user._id);
+      setEmotionHistory(data);
+    } catch (error) {
+      console.error('Không thể tải lịch sử cảm xúc:', error);
+      alert('Không thể tải lịch sử cảm xúc. Vui lòng thử lại.');
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -46,8 +73,12 @@ const StudentDashboard = () => {
 
     setSubmitting(true);
     
+    // Store emotion and message before clearing for encouragement API
+    const emotionToSubmit = selectedEmotion;
+    const messageToSubmit = message;
+    
     try {
-      const result = await submitEmotion(selectedEmotion, message);
+      const result = await submitEmotion(emotionToSubmit, messageToSubmit);
       
       // Trigger confetti
       confetti({
@@ -60,8 +91,25 @@ const StudentDashboard = () => {
       updateUser({ points: (user.points || 0) + 10 });
 
       setSuccessMessage(result.message);
+      
+      // Clear form
       setSelectedEmotion('');
       setMessage('');
+      
+      // Automatically get and show encouragement
+      setLoadingEncouragement(true);
+      setShowEncouragement(true);
+      try {
+        const encouragementData = await getEncouragement(emotionToSubmit, messageToSubmit);
+        setEncouragement(encouragementData.encouragement);
+      } catch (encouragementError) {
+        console.error('Không thể lấy lời động viên:', encouragementError);
+        // Don't show error to user, just skip encouragement
+        setShowEncouragement(false);
+        setEncouragement('');
+      } finally {
+        setLoadingEncouragement(false);
+      }
 
       setTimeout(() => setSuccessMessage(''), 5000);
     } catch (error) {
@@ -190,6 +238,42 @@ const StudentDashboard = () => {
                 </>
               )}
             </motion.button>
+
+            {showEncouragement && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 p-4 glass-card bg-blue-500/20 border-blue-400/50 rounded-xl"
+              >
+                <div className="flex items-start gap-3">
+                  <Heart className="w-6 h-6 text-blue-400 flex-shrink-0 mt-1" />
+                  <div className="flex-1">
+                    <h3 className="text-white font-bold mb-2">💬 Lời Động Viên từ AI</h3>
+                    {loadingEncouragement ? (
+                      <div className="flex items-center gap-2 py-4">
+                        <div className="spinner w-5 h-5 border-2"></div>
+                        <span className="text-white/70">Đang tạo lời động viên...</span>
+                      </div>
+                    ) : encouragement ? (
+                      <p className="text-white/90 leading-relaxed whitespace-pre-wrap">{encouragement}</p>
+                    ) : null}
+                  </div>
+                  {!loadingEncouragement && (
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => {
+                        setShowEncouragement(false);
+                        setEncouragement('');
+                      }}
+                      className="p-1 hover:bg-white/20 rounded transition-all"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </motion.button>
+                  )}
+                </div>
+              </motion.div>
+            )}
           </GlassCard>
         </div>
 
@@ -208,6 +292,21 @@ const StudentDashboard = () => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              setShowHistory(!showHistory);
+              if (!showHistory && user?._id) {
+                loadEmotionHistory();
+              }
+            }}
+            className="btn-primary inline-flex items-center gap-2"
+          >
+            <Calendar className="w-5 h-5" />
+            <span>{showHistory ? 'Ẩn' : 'Xem'} Lịch Sử 7 Ngày</span>
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setShowChangePassword(!showChangePassword)}
             className="btn-secondary inline-flex items-center gap-2"
           >
@@ -215,6 +314,111 @@ const StudentDashboard = () => {
             <span>Đổi Mật Khẩu</span>
           </motion.button>
         </div>
+
+        {/* Emotion History 7 Days */}
+        {showHistory && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="max-w-4xl mx-auto mb-8"
+          >
+            <GlassCard>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Calendar className="w-6 h-6" />
+                  Lịch Sử Cảm Xúc 7 Ngày Qua
+                </h2>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setShowHistory(false)}
+                  className="p-2 glass-card hover:bg-white/20 rounded-lg transition-all"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </motion.button>
+              </div>
+
+              {loadingHistory ? (
+                <div className="flex justify-center items-center py-10">
+                  <div className="spinner w-8 h-8 border-2"></div>
+                </div>
+              ) : emotionHistory.length === 0 ? (
+                <p className="text-white/70 text-center py-10">
+                  Chưa có dữ liệu cảm xúc trong 7 ngày qua. Hãy chia sẻ cảm xúc của bạn nhé! 😊
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {emotionHistory.map((emotion, index) => {
+                    const emotionEmojis = {
+                      happy: '😊',
+                      neutral: '😐',
+                      sad: '😔',
+                      angry: '😡',
+                      tired: '😴'
+                    };
+                    const emotionLabels = {
+                      happy: 'Vui vẻ',
+                      neutral: 'Bình thường',
+                      sad: 'Buồn',
+                      angry: 'Giận dữ',
+                      tired: 'Mệt mỏi'
+                    };
+                    const emotionBorderColors = {
+                      happy: '#fbbf24',
+                      neutral: '#9ca3af',
+                      sad: '#60a5fa',
+                      angry: '#f87171',
+                      tired: '#a78bfa'
+                    };
+                    
+                    const date = new Date(emotion.date);
+                    const dateStr = date.toLocaleDateString('vi-VN', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    });
+
+                    return (
+                      <motion.div
+                        key={emotion._id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="p-4 glass-card bg-white/10 rounded-lg"
+                        style={{ borderLeft: `4px solid ${emotionBorderColors[emotion.emotion]}` }}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="text-4xl flex-shrink-0">
+                            {emotionEmojis[emotion.emotion]}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className="text-white font-bold text-lg">
+                                {emotionLabels[emotion.emotion]}
+                              </h3>
+                              <span className="text-white/70 text-sm">
+                                {dateStr}
+                              </span>
+                            </div>
+                            {emotion.message && (
+                              <p className="text-white/90 mt-2 italic">
+                                "{emotion.message}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </GlassCard>
+          </motion.div>
+        )}
 
         {/* Change Password Form */}
         {showChangePassword && (
