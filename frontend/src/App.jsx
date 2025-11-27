@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import StudentDetail from './pages/StudentDetail';
 import Loading from './components/Loading';
 
 // Home redirect component
@@ -45,6 +46,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['teacher']}>
                 <TeacherDashboard />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/teacher/student/:studentId"
+            element={
+              <ProtectedRoute allowedRoles={['teacher']}>
+                <StudentDetail />
               </ProtectedRoute>
             }
           />

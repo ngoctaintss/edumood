@@ -44,11 +44,6 @@ export const submitEmotion = async (emotion, message) => {
   return response.data;
 };
 
-export const getStudentEmotions = async (studentId) => {
-  const response = await axiosInstance.get(`/emotions/student/${studentId}`);
-  return response.data;
-};
-
 export const getStudentEmotions7Days = async (studentId) => {
   const response = await axiosInstance.get(`/emotions/student/${studentId}/7days`);
   return response.data;
@@ -237,6 +232,33 @@ export const updateMilestone = async (id, milestoneData) => {
 
 export const deleteMilestone = async (id) => {
   const response = await axiosInstance.delete(`/milestones/${id}`);
+  return response.data;
+};
+
+// Settings APIs
+export const getSetting = async (key) => {
+  const response = await axiosInstance.get(`/settings/${key}`);
+  return response.data;
+};
+
+export const getAllSettings = async () => {
+  const response = await axiosInstance.get('/settings');
+  return response.data;
+};
+
+export const updateSetting = async (key, value) => {
+  const response = await axiosInstance.put(`/settings/${key}`, { value });
+  return response.data;
+};
+
+// Student Analysis APIs
+export const getStudentAIAnalysis = async (studentId, days = 7) => {
+  const response = await axiosInstance.post(`/analytics/student/${studentId}?days=${days}`);
+  return response.data;
+};
+
+export const getStudentEmotions = async (studentId, limit = 30) => {
+  const response = await axiosInstance.get(`/emotions/student/${studentId}?limit=${limit}`);
   return response.data;
 };
 

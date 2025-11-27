@@ -7,8 +7,9 @@ import { EmotionPieChart, EmotionBarChart, WeeklyTrendChart } from '../component
 import AIInsightBox from '../components/AIInsightBox';
 import { 
   Users, Plus, Trash2, Edit2, FileText, TrendingUp, CheckCircle, XCircle,
-  Calendar, BarChart3, Sparkles, UserPlus, Save, X, Search, Filter, Gift, Bell
+  Calendar, BarChart3, Sparkles, UserPlus, Save, X, Search, Filter, Gift, Bell, Eye, AlertTriangle, AlertOctagon
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import {
   getStudentsByClass,
   createStudent,
@@ -19,13 +20,15 @@ import {
   checkTodaySubmission,
   getAllClasses,
   getPendingRedemptions,
-  updateRedemptionStatus
+  updateRedemptionStatus,
+  getStudentEmotions7Days
 } from '../utils/api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 const TeacherDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState('');
   const [students, setStudents] = useState([]);
@@ -39,6 +42,7 @@ const TeacherDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [pendingRedemptions, setPendingRedemptions] = useState([]);
   const [loadingRedemptions, setLoadingRedemptions] = useState(false);
+  const [studentEmotions, setStudentEmotions] = useState({}); // { studentId: { emotionData } }
 
   const [studentForm, setStudentForm] = useState({
     studentId: '',
@@ -58,6 +62,17 @@ const TeacherDashboard = () => {
       loadPendingRedemptions();
     }
   }, [selectedClass]);
+
+  // Auto-refresh emotions every 30 seconds
+  useEffect(() => {
+    if (selectedClass && students.length > 0) {
+      const interval = setInterval(() => {
+        loadStudentEmotions(students);
+      }, 30000); // Refresh every 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [selectedClass, students.length]);
 
   useEffect(() => {
     // Load redemptions on mount and when tab changes to notifications
@@ -85,9 +100,168 @@ const TeacherDashboard = () => {
     try {
       const data = await getStudentsByClass(selectedClass);
       setStudents(data);
+      // Load emotions after students are loaded
+      if (data.length > 0) {
+        loadStudentEmotions(data);
+      }
     } catch (error) {
       console.error('Không thể tải học sinh:', error);
     }
+  };
+
+  const loadStudentEmotions = async (studentsList = students) => {
+    if (!selectedClass || studentsList.length === 0) return;
+    
+    try {
+      const emotionsData = {};
+      await Promise.all(
+        studentsList.map(async (student) => {
+          try {
+            const emotions = await getStudentEmotions7Days(student._id);
+            emotionsData[student._id] = emotions || [];
+          } catch (error) {
+            console.error(`Error loading emotions for ${student._id}:`, error);
+            emotionsData[student._id] = [];
+          }
+        })
+      );
+      setStudentEmotions(emotionsData);
+    } catch (error) {
+      console.error('Không thể tải cảm xúc học sinh:', error);
+    }
+  };
+
+  // Calculate emotion color based on 7-day emotions
+  const getEmotionColor = (studentId) => {
+    const emotions = studentEmotions[studentId] || [];
+    if (emotions.length === 0) {
+      return 'from-gray-500 to-gray-600'; // Neutral gray
+    }
+
+    const negativeEmotions = ['sad', 'angry', 'tired'];
+    const positiveEmotions = ['happy'];
+    
+    // Count emotions
+    let positiveCount = 0;
+    let negativeCount = 0;
+    let neutralCount = 0;
+    
+    emotions.forEach(e => {
+      const emotion = e.emotion || e;
+      if (positiveEmotions.includes(emotion)) positiveCount++;
+      else if (negativeEmotions.includes(emotion)) negativeCount++;
+      else neutralCount++;
+    });
+    
+    const total = emotions.length;
+    if (total === 0) return 'from-gray-500 to-gray-600';
+    
+    const positiveRatio = positiveCount / total;
+    const negativeRatio = negativeCount / total;
+    
+    // Calculate color gradient
+    // Green (happy) -> Yellow (neutral) -> Red (negative)
+    if (positiveRatio >= 0.6) {
+      return 'from-green-500 to-emerald-500'; // Mostly happy
+    } else if (positiveRatio >= 0.4) {
+      return 'from-green-400 to-yellow-400'; // More happy than negative
+    } else if (negativeRatio >= 0.6) {
+      return 'from-red-500 to-red-600'; // Mostly negative
+    } else if (negativeRatio >= 0.4) {
+      return 'from-orange-500 to-red-500'; // More negative than positive
+    } else if (positiveRatio > negativeRatio) {
+      return 'from-yellow-400 to-green-400'; // Slightly positive
+    } else if (negativeRatio > positiveRatio) {
+      return 'from-yellow-400 to-orange-400'; // Slightly negative
+    } else {
+      return 'from-yellow-400 to-yellow-500'; // Neutral
+    }
+  };
+
+  // Check if student has alerts
+  const getStudentAlert = (studentId) => {
+    const emotions = studentEmotions[studentId] || [];
+    if (emotions.length === 0) return null;
+
+    const DANGER_KEYWORDS = [
+      'tự tử', 'tự hại', 'không muốn sống', 'muốn chết', 'tự sát',
+      'giết mình', 'chán sống', 'bỏ học', 'bỏ đi', 'ghét bản thân'
+    ];
+
+    // Check for dangerous keywords
+    const dangerousMessages = emotions.filter(e => {
+      const message = e.message || (typeof e === 'string' ? '' : '');
+      if (!message) return false;
+      const messageLower = message.toLowerCase();
+      return DANGER_KEYWORDS.some(keyword => messageLower.includes(keyword));
+    });
+
+    if (dangerousMessages.length > 0) {
+      return {
+        level: 'critical',
+        message: 'Có từ nguy hiểm trong tin nhắn',
+        count: dangerousMessages.length
+      };
+    }
+
+    // Check consecutive negative days
+    const negativeEmotions = ['sad', 'angry', 'tired'];
+    const dates = [...new Set(emotions.map(e => {
+      const date = e.date || e;
+      return new Date(date).toISOString().split('T')[0];
+    }))].sort().reverse();
+
+    let consecutiveNegative = 0;
+    let currentConsecutive = 0;
+    
+    for (const date of dates) {
+      const dayEmotions = emotions.filter(e => {
+        const dateValue = e.date || e;
+        return new Date(dateValue).toISOString().split('T')[0] === date;
+      });
+      const hasNegative = dayEmotions.some(e => {
+        const emotion = e.emotion || e;
+        return negativeEmotions.includes(emotion);
+      });
+      
+      if (hasNegative) {
+        currentConsecutive++;
+        consecutiveNegative = Math.max(consecutiveNegative, currentConsecutive);
+      } else {
+        currentConsecutive = 0;
+      }
+    }
+
+    if (consecutiveNegative >= 3) {
+      return {
+        level: 'high',
+        message: `${consecutiveNegative} ngày liên tiếp cảm xúc tiêu cực`,
+        count: consecutiveNegative
+      };
+    }
+
+    // Check negative ratio
+    const negativeCount = emotions.filter(e => {
+      const emotion = e.emotion || e;
+      return negativeEmotions.includes(emotion);
+    }).length;
+    const negativeRatio = negativeCount / emotions.length;
+
+    if (negativeRatio >= 0.6) {
+      return {
+        level: 'high',
+        message: `${Math.round(negativeRatio * 100)}% cảm xúc tiêu cực`,
+        count: negativeCount
+      };
+    } else if (negativeRatio >= 0.4 || consecutiveNegative >= 2) {
+      return {
+        level: 'medium',
+        message: `${Math.round(negativeRatio * 100)}% cảm xúc tiêu cực`,
+        count: negativeCount
+      };
+    }
+
+    return null;
   };
 
   const loadAnalytics = async () => {
@@ -892,17 +1066,47 @@ const TeacherDashboard = () => {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {filteredStudents.map((student) => (
+                      {filteredStudents.map((student) => {
+                        const emotionColor = getEmotionColor(student._id);
+                        const alert = getStudentAlert(student._id);
+                        
+                        return (
                         <motion.div
                           key={student._id}
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
                           whileHover={{ y: -5 }}
-                          className="glass-card p-4 rounded-xl"
+                          className="glass-card p-4 rounded-xl relative"
+                          style={{
+                            borderLeft: alert ? 
+                              (alert.level === 'critical' ? '4px solid #ef4444' : 
+                               alert.level === 'high' ? '4px solid #f97316' : 
+                               '4px solid #eab308') : 'none'
+                          }}
                         >
+                          {/* Alert Bubble */}
+                          {alert && (
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center ${
+                                alert.level === 'critical' ? 'bg-red-500' :
+                                alert.level === 'high' ? 'bg-orange-500' :
+                                'bg-yellow-500'
+                              } shadow-lg z-10`}
+                              title={alert.message}
+                            >
+                              {alert.level === 'critical' ? (
+                                <AlertOctagon className="w-4 h-4 text-white" />
+                              ) : (
+                                <AlertTriangle className="w-4 h-4 text-white" />
+                              )}
+                            </motion.div>
+                          )}
+                          
                           <div className="flex items-start gap-3">
-                            {/* Avatar */}
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+                            {/* Avatar with emotion color */}
+                            <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${emotionColor} flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg`}>
                               {getInitials(student.name)}
                             </div>
 
@@ -936,6 +1140,16 @@ const TeacherDashboard = () => {
                               <motion.button
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
+                                onClick={() => navigate(`/teacher/student/${student._id}`)}
+                                className="p-2 glass-card hover:bg-blue-500/20 rounded-lg transition-all"
+                                title="Xem chi tiết"
+                              >
+                                <Eye className="w-4 h-4 text-white" />
+                              </motion.button>
+                              
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => startEdit(student)}
                                 className="p-2 glass-card hover:bg-white/20 rounded-lg transition-all"
                               >
@@ -953,7 +1167,8 @@ const TeacherDashboard = () => {
                             </div>
                           </div>
                         </motion.div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

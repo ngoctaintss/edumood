@@ -15,6 +15,7 @@ import rewardRoutes from './routes/rewardRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import streakRoutes from './routes/streakRoutes.js';
 import milestoneRoutes from './routes/milestoneRoutes.js';
+import settingRoutes from './routes/settingRoutes.js';
 
 // Load env vars
 dotenv.config();
@@ -52,13 +53,38 @@ app.use(cors({
   optionsSuccessStatus: 204
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
-});
+// Rate limiting - Disable in development, enable in production
+if (process.env.NODE_ENV === 'production') {
+  // Rate limiting - Auth routes (for production)
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 login attempts per 15 minutes
+    message: 'Too many login attempts, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: true, // Don't count successful logins
+  });
 
-app.use('/api', limiter);
+  // Rate limiting - General API (for production)
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 500, // limit each IP to 500 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => {
+      // Skip rate limiting for auth routes and health check
+      return req.path.startsWith('/api/auth') || req.path === '/api/health';
+    }
+  });
+
+  // Apply rate limiting only in production
+  app.use('/api/auth', authLimiter);
+  app.use('/api', apiLimiter);
+  console.log('🛡️ Rate limiting enabled (production mode)');
+} else {
+  console.log('⚠️ Rate limiting disabled (development mode)');
+}
 
 // Body parser
 app.use(express.json());
@@ -74,6 +100,7 @@ app.use('/api/rewards', rewardRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/streak', streakRoutes);
 app.use('/api/milestones', milestoneRoutes);
+app.use('/api/settings', settingRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -2,6 +2,7 @@ import Emotion from '../models/Emotion.js';
 import Student from '../models/Student.js';
 import Streak from '../models/Streak.js';
 import Milestone from '../models/Milestone.js';
+import Setting from '../models/Setting.js';
 
 // Lazy load OpenAI only when needed
 let openai = null;
@@ -26,11 +27,8 @@ export const submitEmotion = async (req, res) => {
       return res.status(400).json({ message: 'Vui lòng chọn cảm xúc' });
     }
 
-    // Check if student has already submitted today (from 0h today to 0h tomorrow)
-    // Reset happens at 0h Vietnam time (UTC+7)
+    // Calculate today 0h in Vietnam timezone (needed for both limit check and streak)
     const now = new Date();
-    
-    // Get current date/time in Vietnam timezone (UTC+7)
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric',
@@ -55,29 +53,37 @@ export const submitEmotion = async (req, res) => {
     // Tomorrow 0h in Vietnam timezone (as UTC Date for database query)
     const tomorrow0hUTC = new Date(Date.UTC(vietnamYear, vietnamMonth, vietnamDay + 1, 0, 0, 0) - (7 * 60 * 60 * 1000));
 
-    const todaySubmission = await Emotion.findOne({
-      studentId: req.user._id,
-      date: { $gte: today0hUTC, $lt: tomorrow0hUTC }
-    });
-
-    if (todaySubmission) {
-      // Calculate time until 0h tomorrow in Vietnam timezone
-      // Simple calculation: hours left = 24 - current hour, minutes left = 60 - current minute
-      // But we need to account for the exact time
-      const hoursUntilMidnight = 24 - vietnamHour - 1; // Subtract 1 because we want hours until next hour
-      const minutesUntilNextHour = 60 - vietnamMinute;
-      
-      // More accurate: calculate total minutes until midnight
-      const totalMinutesUntilMidnight = (24 - vietnamHour) * 60 - vietnamMinute;
-      const hoursLeft = Math.floor(totalMinutesUntilMidnight / 60);
-      const minutesLeft = totalMinutesUntilMidnight % 60;
-      
-      return res.status(429).json({ 
-        message: `Bạn đã gửi cảm xúc hôm nay. Vui lòng đợi đến 0h ngày mai để gửi lại. (Còn ${hoursLeft} giờ ${minutesLeft} phút)`,
-        canSubmitAt: tomorrow0hUTC,
-        hoursLeft: hoursLeft,
-        minutesLeft: minutesLeft
+    // Check if submission limit is enabled
+    let limitSetting = await Setting.findOne({ key: 'emotion_submission_limit_enabled' });
+    if (!limitSetting) {
+      // Create default setting if doesn't exist
+      limitSetting = await Setting.create({
+        key: 'emotion_submission_limit_enabled',
+        value: true,
+        description: 'Bật/tắt giới hạn thời gian gửi cảm xúc (24h)'
       });
+    }
+
+    // Only check limit if enabled
+    if (limitSetting.value === true) {
+      const todaySubmission = await Emotion.findOne({
+        studentId: req.user._id,
+        date: { $gte: today0hUTC, $lt: tomorrow0hUTC }
+      });
+
+      if (todaySubmission) {
+        // Calculate time until 0h tomorrow in Vietnam timezone
+        const totalMinutesUntilMidnight = (24 - vietnamHour) * 60 - vietnamMinute;
+        const hoursLeft = Math.floor(totalMinutesUntilMidnight / 60);
+        const minutesLeft = totalMinutesUntilMidnight % 60;
+        
+        return res.status(429).json({ 
+          message: `Bạn đã gửi cảm xúc hôm nay. Vui lòng đợi đến 0h ngày mai để gửi lại. (Còn ${hoursLeft} giờ ${minutesLeft} phút)`,
+          canSubmitAt: tomorrow0hUTC,
+          hoursLeft: hoursLeft,
+          minutesLeft: minutesLeft
+        });
+      }
     }
 
     // Create emotion record

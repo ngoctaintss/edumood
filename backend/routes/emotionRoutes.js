@@ -15,7 +15,7 @@ router.post('/', protect, authorize('student'), submitEmotion);
 router.post('/encouragement', protect, authorize('student'), getEncouragement);
 router.get('/class/:classId', protect, authorize('teacher', 'admin'), getEmotionsByClass);
 router.get('/check/:studentId', protect, checkTodaySubmission);
-router.get('/student/:studentId/7days', protect, authorize('student'), getStudentEmotions7Days);
+router.get('/student/:studentId/7days', protect, authorize('student', 'teacher', 'admin'), getStudentEmotions7Days);
 router.get('/student/:studentId', protect, getStudentEmotions);
 
 export default router;

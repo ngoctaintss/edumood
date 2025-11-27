@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import GlassCard from '../components/GlassCard';
 import { 
-  Users, GraduationCap, Gift, Plus, Trash2, Edit2, TrendingUp, Trophy
+  Users, GraduationCap, Gift, Plus, Trash2, Edit2, TrendingUp, Trophy, Settings
 } from 'lucide-react';
 import {
   getAllTeachers,
@@ -23,7 +23,9 @@ import {
   getMilestones,
   createMilestone,
   updateMilestone,
-  deleteMilestone
+  deleteMilestone,
+  getSetting,
+  updateSetting
 } from '../utils/api';
 
 const AdminDashboard = () => {
@@ -53,10 +55,37 @@ const AdminDashboard = () => {
   const [editingClass, setEditingClass] = useState(null);
   const [editingReward, setEditingReward] = useState(null);
   const [editingMilestone, setEditingMilestone] = useState(null);
+  const [submissionLimitEnabled, setSubmissionLimitEnabled] = useState(true);
+  const [loadingSetting, setLoadingSetting] = useState(false);
 
   useEffect(() => {
     loadAllData();
+    loadSubmissionLimitSetting();
   }, []);
+
+  const loadSubmissionLimitSetting = async () => {
+    try {
+      const setting = await getSetting('emotion_submission_limit_enabled');
+      setSubmissionLimitEnabled(setting.value);
+    } catch (error) {
+      console.error('Không thể tải setting:', error);
+    }
+  };
+
+  const toggleSubmissionLimit = async () => {
+    setLoadingSetting(true);
+    try {
+      const newValue = !submissionLimitEnabled;
+      await updateSetting('emotion_submission_limit_enabled', newValue);
+      setSubmissionLimitEnabled(newValue);
+      alert(`Đã ${newValue ? 'bật' : 'tắt'} giới hạn gửi cảm xúc 24h`);
+    } catch (error) {
+      alert('Không thể cập nhật setting. Vui lòng thử lại.');
+      console.error(error);
+    } finally {
+      setLoadingSetting(false);
+    }
+  };
 
   const loadAllData = async () => {
     try {
@@ -258,6 +287,7 @@ const AdminDashboard = () => {
     { id: 'classes', label: 'Lớp Học', icon: Users },
     { id: 'rewards', label: 'Phần Thưởng', icon: Gift },
     { id: 'milestones', label: 'Milestones', icon: Trophy },
+    { id: 'settings', label: 'Cài Đặt', icon: Settings },
     { id: 'stats', label: 'Thống Kê', icon: TrendingUp }
   ];
 
@@ -729,6 +759,53 @@ const AdminDashboard = () => {
                   Chưa có milestones nào. Hãy tạo milestone đầu tiên!
                 </p>
               )}
+            </div>
+          </GlassCard>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <GlassCard>
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <Settings className="w-7 h-7" />
+              Cài Đặt Hệ Thống
+            </h2>
+
+            <div className="space-y-6">
+              {/* Submission Limit Toggle */}
+              <div className="glass-card p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-semibold text-white mb-2">
+                      Giới Hạn Gửi Cảm Xúc
+                    </h3>
+                    <p className="text-white/70 text-sm">
+                      {submissionLimitEnabled 
+                        ? 'Học sinh chỉ có thể gửi cảm xúc 1 lần mỗi ngày (reset vào 0h)'
+                        : 'Đã tắt giới hạn - Học sinh có thể gửi cảm xúc nhiều lần trong ngày'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={toggleSubmissionLimit}
+                    disabled={loadingSetting}
+                    className={`
+                      relative inline-flex h-8 w-14 items-center rounded-full transition-colors
+                      ${submissionLimitEnabled ? 'bg-green-500' : 'bg-gray-600'}
+                      ${loadingSetting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                    `}
+                  >
+                    <span
+                      className={`
+                        inline-block h-6 w-6 transform rounded-full bg-white transition-transform
+                        ${submissionLimitEnabled ? 'translate-x-7' : 'translate-x-1'}
+                      `}
+                    />
+                  </button>
+                </div>
+                <div className="mt-4 text-xs text-white/50">
+                  {submissionLimitEnabled ? '✅ Đang bật' : '❌ Đang tắt'}
+                </div>
+              </div>
             </div>
           </GlassCard>
         )}

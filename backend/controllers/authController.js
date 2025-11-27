@@ -6,6 +6,9 @@ import Admin from '../models/Admin.js';
 
 // Generate JWT Token
 const generateToken = (id, role) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not defined in environment variables');
+  }
   return jwt.sign({ id, role }, process.env.JWT_SECRET, {
     expiresIn: '30d'
   });
@@ -18,8 +21,16 @@ export const login = async (req, res) => {
   try {
     const { identifier, password, role } = req.body;
 
+    console.log('Login attempt:', { identifier, role, hasPassword: !!password });
+
     if (!identifier || !password || !role) {
       return res.status(400).json({ message: 'Please provide all fields' });
+    }
+
+    // Check JWT_SECRET
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is missing!');
+      return res.status(500).json({ message: 'Server configuration error' });
     }
 
     let user;
@@ -44,6 +55,11 @@ export const login = async (req, res) => {
     }
 
     // Check password
+    if (!user.password) {
+      console.error('User password is missing:', user._id);
+      return res.status(500).json({ message: 'User data error' });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -51,7 +67,16 @@ export const login = async (req, res) => {
     }
 
     // Generate token
-    const token = generateToken(user._id, role);
+    let token;
+    try {
+      token = generateToken(user._id, role);
+    } catch (tokenError) {
+      console.error('Token generation error:', tokenError);
+      return res.status(500).json({ 
+        message: 'Token generation failed',
+        error: process.env.NODE_ENV === 'development' ? tokenError.message : undefined
+      });
+    }
 
     // Return user data without password
     const userData = {
@@ -78,8 +103,23 @@ export const login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Login Error Details:');
+    console.error('Error Message:', error.message);
+    console.error('Error Stack:', error.stack);
+    console.error('Request Body:', req.body);
+    
+    // Check for specific errors
+    if (error.message.includes('JWT_SECRET')) {
+      return res.status(500).json({ 
+        message: 'Server configuration error: JWT_SECRET missing',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+    
+    res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 

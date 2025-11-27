@@ -28,7 +28,10 @@ export const AuthProvider = ({ children }) => {
       setUser(response.data);
     } catch (error) {
       console.error('Failed to load user:', error);
+      // Only logout if it's not a network error (backend might be down)
+      if (error.code !== 'ECONNREFUSED' && error.response?.status !== 500) {
       logout();
+      }
     } finally {
       setLoading(false);
     }

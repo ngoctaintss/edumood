@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Brain, Lightbulb } from 'lucide-react';
+import { Brain, Lightbulb, AlertTriangle, AlertCircle, AlertOctagon } from 'lucide-react';
 import GlassCard from './GlassCard';
 
 const AIInsightBox = ({ analysis, loading }) => {
@@ -50,6 +50,68 @@ const AIInsightBox = ({ analysis, loading }) => {
               {analysis.summary}
             </p>
           </div>
+
+          {analysis.concerningStudents && analysis.concerningStudents.length > 0 && (
+            <div className="glass-card p-4 rounded-xl border-l-4 border-red-500">
+              <div className="flex items-start gap-2 mb-3">
+                <AlertTriangle className="w-5 h-5 text-red-400 mt-1" />
+                <h4 className="text-white font-semibold">Học Sinh Cần Quan Tâm</h4>
+              </div>
+              <div className="space-y-3">
+                {analysis.concerningStudents.map((student, index) => {
+                  const getRiskColor = (level) => {
+                    if (level === 'critical') return 'text-red-400 border-red-500';
+                    if (level === 'high') return 'text-orange-400 border-orange-500';
+                    return 'text-yellow-400 border-yellow-500';
+                  };
+                  
+                  const getRiskIcon = (level) => {
+                    if (level === 'critical') return <AlertOctagon className="w-4 h-4" />;
+                    if (level === 'high') return <AlertTriangle className="w-4 h-4" />;
+                    return <AlertCircle className="w-4 h-4" />;
+                  };
+                  
+                  const getRiskLabel = (level) => {
+                    if (level === 'critical') return 'Nghiêm Trọng';
+                    if (level === 'high') return 'Cao';
+                    return 'Trung Bình';
+                  };
+                  
+                  return (
+                    <div 
+                      key={index} 
+                      className={`p-3 rounded-lg border-l-4 ${getRiskColor(student.riskLevel)} bg-white/5`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        {getRiskIcon(student.riskLevel)}
+                        <span className="font-semibold text-white">{student.name}</span>
+                        <span className={`text-xs px-2 py-1 rounded ${getRiskColor(student.riskLevel)} border`}>
+                          {getRiskLabel(student.riskLevel)}
+                        </span>
+                      </div>
+                      <div className="text-white/80 text-sm space-y-1 ml-6">
+                        {student.hasDangerousKeywords && (
+                          <p className="text-red-300">⚠️ Có từ nguy hiểm trong tin nhắn</p>
+                        )}
+                        {student.consecutiveNegativeDays > 0 && (
+                          <p>📅 {student.consecutiveNegativeDays} ngày liên tiếp cảm xúc tiêu cực</p>
+                        )}
+                        <p>📊 {student.negativeRatio}% cảm xúc tiêu cực</p>
+                        {student.dangerousMessages && student.dangerousMessages.length > 0 && (
+                          <div className="mt-2 p-2 bg-red-500/20 rounded text-xs">
+                            <p className="font-semibold mb-1">Tin nhắn:</p>
+                            {student.dangerousMessages.slice(0, 2).map((msg, i) => (
+                              <p key={i} className="italic">"{msg}"</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {analysis.emotionDistribution && (
             <div className="glass-card p-4 rounded-xl">
