@@ -27,27 +27,54 @@ export const submitEmotion = async (req, res) => {
     }
 
     // Check if student has already submitted today (from 0h today to 0h tomorrow)
+    // Reset happens at 0h Vietnam time (UTC+7)
     const now = new Date();
-    const today = new Date(now);
-    today.setHours(0, 0, 0, 0);
     
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Get current date/time in Vietnam timezone (UTC+7)
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    
+    const parts = formatter.formatToParts(now);
+    const vietnamYear = parseInt(parts.find(p => p.type === 'year').value);
+    const vietnamMonth = parseInt(parts.find(p => p.type === 'month').value) - 1; // Month is 0-indexed
+    const vietnamDay = parseInt(parts.find(p => p.type === 'day').value);
+    const vietnamHour = parseInt(parts.find(p => p.type === 'hour').value);
+    const vietnamMinute = parseInt(parts.find(p => p.type === 'minute').value);
+    
+    // Today 0h in Vietnam timezone (as UTC Date for database query)
+    const today0hUTC = new Date(Date.UTC(vietnamYear, vietnamMonth, vietnamDay, 0, 0, 0) - (7 * 60 * 60 * 1000));
+    
+    // Tomorrow 0h in Vietnam timezone (as UTC Date for database query)
+    const tomorrow0hUTC = new Date(Date.UTC(vietnamYear, vietnamMonth, vietnamDay + 1, 0, 0, 0) - (7 * 60 * 60 * 1000));
 
     const todaySubmission = await Emotion.findOne({
       studentId: req.user._id,
-      date: { $gte: today, $lt: tomorrow }
+      date: { $gte: today0hUTC, $lt: tomorrow0hUTC }
     });
 
     if (todaySubmission) {
-      // Calculate time until midnight (next reset)
-      const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-      const hoursLeft = Math.floor(timeUntilMidnight / (1000 * 60 * 60));
-      const minutesLeft = Math.floor((timeUntilMidnight % (1000 * 60 * 60)) / (1000 * 60));
+      // Calculate time until 0h tomorrow in Vietnam timezone
+      // Simple calculation: hours left = 24 - current hour, minutes left = 60 - current minute
+      // But we need to account for the exact time
+      const hoursUntilMidnight = 24 - vietnamHour - 1; // Subtract 1 because we want hours until next hour
+      const minutesUntilNextHour = 60 - vietnamMinute;
+      
+      // More accurate: calculate total minutes until midnight
+      const totalMinutesUntilMidnight = (24 - vietnamHour) * 60 - vietnamMinute;
+      const hoursLeft = Math.floor(totalMinutesUntilMidnight / 60);
+      const minutesLeft = totalMinutesUntilMidnight % 60;
       
       return res.status(429).json({ 
-        message: `Bạn đã gửi cảm xúc hôm nay. Vui lòng đợi đến 0h ngày mai để gửi lại.${hoursLeft > 0 ? ` (Còn ${hoursLeft} giờ ${minutesLeft} phút)` : ` (Còn ${minutesLeft} phút)`}`,
-        canSubmitAt: tomorrow,
+        message: `Bạn đã gửi cảm xúc hôm nay. Vui lòng đợi đến 0h ngày mai để gửi lại. (Còn ${hoursLeft} giờ ${minutesLeft} phút)`,
+        canSubmitAt: tomorrow0hUTC,
         hoursLeft: hoursLeft,
         minutesLeft: minutesLeft
       });
@@ -66,9 +93,9 @@ export const submitEmotion = async (req, res) => {
       $inc: { points: 10 }
     }, { new: true });
 
-    // Update streak (reuse today variable from above)
-    // today is already defined above, just ensure it's set to midnight
-    today.setHours(0, 0, 0, 0);
+    // Update streak using Vietnam timezone
+    // Use today0hUTC which represents today 0h in Vietnam timezone
+    const todayForStreak = new Date(today0hUTC);
     
     let streak = await Streak.findOne({ studentId: req.user._id });
     let milestoneAchieved = null;
@@ -80,7 +107,7 @@ export const submitEmotion = async (req, res) => {
         studentId: req.user._id,
         currentStreak: 1,
         longestStreak: 1,
-        lastSubmissionDate: today,
+        lastSubmissionDate: todayForStreak,
         totalSubmissions: 1
       });
     } else {
@@ -88,20 +115,31 @@ export const submitEmotion = async (req, res) => {
         ? new Date(streak.lastSubmissionDate)
         : null;
       
+      // Convert last submission date to Vietnam timezone for comparison
+      let lastSubmissionVietnam = null;
       if (lastSubmissionDate) {
-        lastSubmissionDate.setHours(0, 0, 0, 0);
+        const lastParts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).formatToParts(lastSubmissionDate);
+        const lastYear = parseInt(lastParts.find(p => p.type === 'year').value);
+        const lastMonth = parseInt(lastParts.find(p => p.type === 'month').value) - 1;
+        const lastDay = parseInt(lastParts.find(p => p.type === 'day').value);
+        lastSubmissionVietnam = new Date(Date.UTC(lastYear, lastMonth, lastDay, 0, 0, 0) - (7 * 60 * 60 * 1000));
       }
 
-      const yesterday = new Date(today);
+      const yesterday = new Date(todayForStreak);
       yesterday.setDate(yesterday.getDate() - 1);
 
-      if (!lastSubmissionDate) {
+      if (!lastSubmissionVietnam) {
         // First submission ever
         streak.currentStreak = 1;
-      } else if (lastSubmissionDate.getTime() === today.getTime()) {
+      } else if (lastSubmissionVietnam.getTime() === todayForStreak.getTime()) {
         // Already submitted today, shouldn't happen due to rate limit, but just in case
         streak.currentStreak = streak.currentStreak;
-      } else if (lastSubmissionDate.getTime() === yesterday.getTime()) {
+      } else if (lastSubmissionVietnam.getTime() === yesterday.getTime()) {
         // Consecutive day - increment streak
         streak.currentStreak += 1;
       } else {
@@ -114,7 +152,7 @@ export const submitEmotion = async (req, res) => {
         streak.longestStreak = streak.currentStreak;
       }
 
-      streak.lastSubmissionDate = today;
+      streak.lastSubmissionDate = todayForStreak;
       streak.totalSubmissions += 1;
 
       // Check for milestones
