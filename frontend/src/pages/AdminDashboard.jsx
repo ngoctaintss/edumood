@@ -582,7 +582,7 @@ const AdminDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
-                  placeholder="Tên Milestone"
+                  placeholder="Ví dụ: 7 Ngày Liên Tiếp"
                   value={milestoneForm.name}
                   onChange={(e) => setMilestoneForm({ ...milestoneForm, name: e.target.value })}
                   className="input-field"
@@ -590,7 +590,7 @@ const AdminDashboard = () => {
                 />
                 <input
                   type="number"
-                  placeholder="Số ngày"
+                  placeholder="Ví dụ: 7 (số ngày liên tiếp cần đạt)"
                   value={milestoneForm.dayCount}
                   onChange={(e) => setMilestoneForm({ ...milestoneForm, dayCount: parseInt(e.target.value) })}
                   className="input-field"
@@ -598,7 +598,7 @@ const AdminDashboard = () => {
                   min="1"
                 />
                 <textarea
-                  placeholder="Mô tả (tùy chọn)"
+                  placeholder="Mô tả ngắn về milestone này (tùy chọn)"
                   value={milestoneForm.description}
                   onChange={(e) => setMilestoneForm({ ...milestoneForm, description: e.target.value })}
                   className="input-field resize-none"
@@ -606,7 +606,7 @@ const AdminDashboard = () => {
                 />
                 <input
                   type="number"
-                  placeholder="Điểm thưởng"
+                  placeholder="Ví dụ: 50 (số điểm học sinh nhận được)"
                   value={milestoneForm.rewardPoints}
                   onChange={(e) => setMilestoneForm({ ...milestoneForm, rewardPoints: parseInt(e.target.value) || 0 })}
                   className="input-field"
@@ -614,7 +614,7 @@ const AdminDashboard = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Icon (emoji)"
+                  placeholder="Ví dụ: 🏆 (1-2 ký tự emoji)"
                   value={milestoneForm.icon}
                   onChange={(e) => setMilestoneForm({ ...milestoneForm, icon: e.target.value })}
                   className="input-field"
@@ -622,14 +622,14 @@ const AdminDashboard = () => {
                 />
                 <input
                   type="text"
-                  placeholder="Màu sắc (hex)"
+                  placeholder="Ví dụ: #FFD700 (mã màu hex)"
                   value={milestoneForm.color}
                   onChange={(e) => setMilestoneForm({ ...milestoneForm, color: e.target.value })}
                   className="input-field"
                 />
                 <input
                   type="number"
-                  placeholder="Thứ tự hiển thị"
+                  placeholder="Ví dụ: 1 (số càng nhỏ càng hiển thị trước)"
                   value={milestoneForm.order}
                   onChange={(e) => setMilestoneForm({ ...milestoneForm, order: parseInt(e.target.value) || 1 })}
                   className="input-field"
@@ -768,10 +768,10 @@ const AdminDashboard = () => {
                     tired: 'Mệt mỏi'
                   };
                   return (
-                    <div key={emotion} className="text-center glass-card p-4 rounded-xl">
-                      <p className="text-3xl font-bold text-white mb-1">{count}</p>
+                  <div key={emotion} className="text-center glass-card p-4 rounded-xl">
+                    <p className="text-3xl font-bold text-white mb-1">{count}</p>
                       <p className="text-white/70">{EMOTION_LABELS[emotion] || emotion}</p>
-                    </div>
+                  </div>
                   );
                 })}
               </div>

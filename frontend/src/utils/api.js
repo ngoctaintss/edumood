@@ -59,33 +59,6 @@ export const getEncouragement = async (emotion, message) => {
   return response.data;
 };
 
-// Streak APIs
-export const getStreak = async () => {
-  const response = await axiosInstance.get('/streak');
-  return response.data;
-};
-
-// Milestone APIs
-export const getMilestones = async () => {
-  const response = await axiosInstance.get('/milestones');
-  return response.data;
-};
-
-export const createMilestone = async (milestoneData) => {
-  const response = await axiosInstance.post('/milestones', milestoneData);
-  return response.data;
-};
-
-export const updateMilestone = async (id, milestoneData) => {
-  const response = await axiosInstance.put(`/milestones/${id}`, milestoneData);
-  return response.data;
-};
-
-export const deleteMilestone = async (id) => {
-  const response = await axiosInstance.delete(`/milestones/${id}`);
-  return response.data;
-};
-
 // Teacher APIs
 export const getStudentsByClass = async (classId) => {
   const response = await axiosInstance.get(`/students/class/${classId}`);

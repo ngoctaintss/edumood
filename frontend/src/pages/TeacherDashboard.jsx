@@ -239,9 +239,9 @@ const TeacherDashboard = () => {
         <p style="margin: 5px 0; font-size: 14px;">Ngày xuất báo cáo: ${new Date().toLocaleDateString('vi-VN')}</p>
       `;
       pdfContent.appendChild(header);
-
+    
       // Tổng quan
-      if (analytics) {
+    if (analytics) {
         const overviewSection = document.createElement('div');
         overviewSection.style.marginBottom = '30px';
         
