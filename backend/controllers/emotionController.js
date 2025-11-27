@@ -66,8 +66,8 @@ export const submitEmotion = async (req, res) => {
       $inc: { points: 10 }
     }, { new: true });
 
-    // Update streak
-    const today = new Date();
+    // Update streak (reuse today variable from above)
+    // today is already defined above, just ensure it's set to midnight
     today.setHours(0, 0, 0, 0);
     
     let streak = await Streak.findOne({ studentId: req.user._id });
