@@ -26,23 +26,30 @@ export const submitEmotion = async (req, res) => {
       return res.status(400).json({ message: 'Vui lòng chọn cảm xúc' });
     }
 
-    // Check if student has already submitted in the last 24 hours
+    // Check if student has already submitted today (from 0h today to 0h tomorrow)
     const now = new Date();
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const recentSubmission = await Emotion.findOne({
+    const todaySubmission = await Emotion.findOne({
       studentId: req.user._id,
-      date: { $gte: twentyFourHoursAgo }
-    }).sort({ date: -1 });
+      date: { $gte: today, $lt: tomorrow }
+    });
 
-    if (recentSubmission) {
-      const timeUntilNext = new Date(recentSubmission.date.getTime() + 24 * 60 * 60 * 1000);
-      const hoursLeft = Math.ceil((timeUntilNext - now) / (1000 * 60 * 60));
+    if (todaySubmission) {
+      // Calculate time until midnight (next reset)
+      const timeUntilMidnight = tomorrow.getTime() - now.getTime();
+      const hoursLeft = Math.floor(timeUntilMidnight / (1000 * 60 * 60));
+      const minutesLeft = Math.floor((timeUntilMidnight % (1000 * 60 * 60)) / (1000 * 60));
       
       return res.status(429).json({ 
-        message: `Bạn đã gửi cảm xúc trong 24 giờ qua. Vui lòng đợi ${hoursLeft} giờ nữa để gửi lại.`,
-        canSubmitAt: timeUntilNext,
-        hoursLeft: hoursLeft
+        message: `Bạn đã gửi cảm xúc hôm nay. Vui lòng đợi đến 0h ngày mai để gửi lại.${hoursLeft > 0 ? ` (Còn ${hoursLeft} giờ ${minutesLeft} phút)` : ` (Còn ${minutesLeft} phút)`}`,
+        canSubmitAt: tomorrow,
+        hoursLeft: hoursLeft,
+        minutesLeft: minutesLeft
       });
     }
 

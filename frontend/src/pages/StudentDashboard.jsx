@@ -168,9 +168,8 @@ const StudentDashboard = () => {
       setTimeout(() => setSuccessMessage(''), 5000);
     } catch (error) {
       if (error.response?.status === 429) {
-        // Rate limit error
-        const hoursLeft = error.response?.data?.hoursLeft || 0;
-        alert(error.response?.data?.message || `Bạn đã gửi cảm xúc trong 24 giờ qua. Vui lòng đợi ${hoursLeft} giờ nữa.`);
+        // Rate limit error - already submitted today
+        alert(error.response?.data?.message || 'Bạn đã gửi cảm xúc hôm nay. Vui lòng đợi đến 0h ngày mai để gửi lại.');
       } else {
         alert(error.response?.data?.message || 'Không thể gửi cảm xúc. Vui lòng thử lại.');
       }
