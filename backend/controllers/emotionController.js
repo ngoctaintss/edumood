@@ -297,6 +297,68 @@ export const checkTodaySubmission = async (req, res) => {
   }
 };
 
+// @desc    Check today submission status for all students in a class (batch)
+// @route   GET /api/emotions/check-class/:classId
+// @access  Private (Teacher/Admin)
+export const checkClassSubmissions = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    
+    // Get all students in the class
+    const Student = (await import('../models/Student.js')).default;
+    const students = await Student.find({ classId });
+    
+    if (students.length === 0) {
+      return res.json({});
+    }
+
+    const studentIds = students.map(s => s._id);
+
+    // Calculate today 0h in Vietnam timezone
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    
+    const parts = formatter.formatToParts(now);
+    const vietnamYear = parseInt(parts.find(p => p.type === 'year').value);
+    const vietnamMonth = parseInt(parts.find(p => p.type === 'month').value) - 1;
+    const vietnamDay = parseInt(parts.find(p => p.type === 'day').value);
+    
+    // Today 0h in Vietnam timezone (as UTC Date for database query)
+    const today0hUTC = new Date(Date.UTC(vietnamYear, vietnamMonth, vietnamDay, 0, 0, 0) - (7 * 60 * 60 * 1000));
+    
+    // Tomorrow 0h in Vietnam timezone
+    const tomorrow0hUTC = new Date(Date.UTC(vietnamYear, vietnamMonth, vietnamDay + 1, 0, 0, 0) - (7 * 60 * 60 * 1000));
+
+    // Get all submissions today for students in this class (single query)
+    const todaySubmissions = await Emotion.find({
+      studentId: { $in: studentIds },
+      date: { $gte: today0hUTC, $lt: tomorrow0hUTC }
+    }).distinct('studentId');
+
+    // Create status object: { studentId: true/false }
+    const status = {};
+    students.forEach(student => {
+      status[student._id] = todaySubmissions.some(
+        id => id.toString() === student._id.toString()
+      );
+    });
+
+    res.json(status);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // @desc    Get student's emotion history
 // @route   GET /api/emotions/student/:studentId
 // @access  Private (Student/Teacher)

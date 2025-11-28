@@ -18,6 +18,7 @@ import {
   getClassAnalytics,
   getAIAnalysis,
   checkTodaySubmission,
+  checkClassSubmissions,
   getAllClasses,
   getPendingRedemptions,
   updateRedemptionStatus,
@@ -278,14 +279,8 @@ const TeacherDashboard = () => {
 
   const checkStudentSubmissions = async () => {
     try {
-      const data = await getStudentsByClass(selectedClass);
-      const status = {};
-      
-      for (const student of data) {
-        const result = await checkTodaySubmission(student._id);
-        status[student._id] = result.submitted;
-      }
-      
+      // Use batch API to check all students at once (much faster!)
+      const status = await checkClassSubmissions(selectedClass);
       setSubmissionStatus(status);
     } catch (error) {
       console.error('Không thể kiểm tra trạng thái:', error);
@@ -408,7 +403,7 @@ const TeacherDashboard = () => {
       // Load analytics data theo thời gian đã chọn
       const pdfAnalytics = await getClassAnalytics(selectedClass, days);
       
-      const className = classes.find(c => c._id === selectedClass)?.name || 'Lớp';
+    const className = classes.find(c => c._id === selectedClass)?.name || 'Lớp';
       const periodText = days === 1 ? 'Hôm nay' : `${days} ngày qua`;
       
       // Tạo HTML content cho PDF
@@ -863,7 +858,7 @@ const TeacherDashboard = () => {
                     ))}
                   </div>
                 </div>
-
+                
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -914,10 +909,10 @@ const TeacherDashboard = () => {
                 </svg>
                 {/* Percentage text in center */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
+            <div className="text-center">
                     <div className="text-2xl font-bold text-white">
-                      {submissionRate}%
-                    </div>
+                {submissionRate}%
+              </div>
                   </div>
                 </div>
               </div>
@@ -928,7 +923,7 @@ const TeacherDashboard = () => {
                   Tỷ lệ gửi hôm nay
                 </div>
                 <div className="text-white/60 text-xs">
-                  {submittedCount}/{students.length} học sinh
+                {submittedCount}/{students.length} học sinh
                 </div>
               </div>
 
@@ -1328,8 +1323,8 @@ const TeacherDashboard = () => {
               <GlassCard className="p-6">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                   <h3 className="text-2xl font-bold text-white">
-                    Thống Kê Chi Tiết
-                  </h3>
+                  Thống Kê Chi Tiết
+                </h3>
                   
                   {/* Period Selector for Analytics */}
                   <div className="flex items-center gap-2">

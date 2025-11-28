@@ -106,6 +106,12 @@ export const checkTodaySubmission = async (studentId) => {
   return response.data;
 };
 
+// Check submission status for all students in a class (batch)
+export const checkClassSubmissions = async (classId) => {
+  const response = await axiosInstance.get(`/emotions/check-class/${classId}`);
+  return response.data;
+};
+
 // Admin APIs
 export const getAllTeachers = async () => {
   const response = await axiosInstance.get('/teachers');
