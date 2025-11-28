@@ -84,20 +84,19 @@ export const getEmotionsByClass = async (classId, startDate, endDate) => {
   return response.data;
 };
 
-export const getClassAnalytics = async (classId, startDate, endDate) => {
+export const getClassAnalytics = async (classId, days = 7) => {
   let url = `/analytics/class/${classId}`;
-  if (startDate && endDate) {
-    url += `?startDate=${startDate}&endDate=${endDate}`;
+  if (days) {
+    url += `?days=${days}`;
   }
   const response = await axiosInstance.get(url);
   return response.data;
 };
 
-export const getAIAnalysis = async (classId, startDate, endDate) => {
+export const getAIAnalysis = async (classId, days = 7) => {
   const response = await axiosInstance.post('/analytics/ai', {
     classId,
-    startDate,
-    endDate
+    days
   });
   return response.data;
 };

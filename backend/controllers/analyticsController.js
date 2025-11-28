@@ -19,7 +19,7 @@ const getOpenAI = async () => {
 export const getClassAnalytics = async (req, res) => {
   try {
     const { classId } = req.params;
-    const { startDate, endDate, period = 'week' } = req.query;
+    const { days = 7 } = req.query;
 
     // Check if teacher has access to this class
     if (req.user.role === 'teacher' && !req.user.classIds.some(id => id.toString() === classId)) {
@@ -30,15 +30,22 @@ export const getClassAnalytics = async (req, res) => {
     const students = await Student.find({ classId }).select('_id name');
     const studentIds = students.map(s => s._id);
 
-    // Build date query
+    // Build date query based on days
     let dateQuery = {};
-    if (startDate && endDate) {
-      dateQuery = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    const daysAgo = new Date();
+    
+    if (parseInt(days) === 1) {
+      // Today only
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      dateQuery = { $gte: today, $lt: tomorrow };
     } else {
-      // Default to last 7 days
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      dateQuery = { $gte: sevenDaysAgo };
+      // Last N days
+      daysAgo.setDate(daysAgo.getDate() - parseInt(days));
+      daysAgo.setHours(0, 0, 0, 0);
+      dateQuery = { $gte: daysAgo };
     }
 
     // Get emotions
@@ -108,7 +115,7 @@ export const getClassAnalytics = async (req, res) => {
 // @access  Private (Teacher)
 export const getAIAnalysis = async (req, res) => {
   try {
-    const { classId, startDate, endDate } = req.body;
+    const { classId, days = 7 } = req.body;
 
     // Check if teacher has access to this class
     if (req.user.role === 'teacher' && !req.user.classIds.some(id => id.toString() === classId)) {
@@ -138,15 +145,22 @@ export const getAIAnalysis = async (req, res) => {
     const students = await Student.find({ classId }).select('_id name studentId');
     const studentIds = students.map(s => s._id);
 
-    // Build date query
+    // Build date query based on days
     let dateQuery = {};
-    if (startDate && endDate) {
-      dateQuery = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    const daysAgo = new Date();
+    
+    if (parseInt(days) === 1) {
+      // Today only
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      dateQuery = { $gte: today, $lt: tomorrow };
     } else {
-      // Default to last 7 days
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      dateQuery = { $gte: sevenDaysAgo };
+      // Last N days
+      daysAgo.setDate(daysAgo.getDate() - parseInt(days));
+      daysAgo.setHours(0, 0, 0, 0);
+      dateQuery = { $gte: daysAgo };
     }
 
     // Get emotions with messages
@@ -283,9 +297,9 @@ export const getAIAnalysis = async (req, res) => {
       .slice(0, 20);
 
     // Create prompt for OpenAI (Vietnamese)
-    const dateRangeText = startDate && endDate 
-      ? `từ ${new Date(startDate).toLocaleDateString('vi-VN')} đến ${new Date(endDate).toLocaleDateString('vi-VN')}`
-      : '7 ngày qua';
+    const dateRangeText = parseInt(days) === 1 
+      ? 'hôm nay'
+      : `${parseInt(days)} ngày qua`;
 
     // Build concerning students text
     let concerningStudentsText = '';
@@ -377,9 +391,10 @@ Hãy trình bày chuyên nghiệp, đồng cảm, tích cực nhưng thực tế
       summary: aiResponse,
       emotionDistribution: percentages,
       totalSubmissions: total,
+      period: parseInt(days),
       dateRange: {
-        start: startDate || 'Last 7 days',
-        end: endDate || 'Today'
+        start: parseInt(days) === 1 ? 'Hôm nay' : `${parseInt(days)} ngày qua`,
+        end: 'Hôm nay'
       },
       concerningStudents: concerningStudents.map(s => ({
         name: s.name,

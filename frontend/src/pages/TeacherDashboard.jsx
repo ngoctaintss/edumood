@@ -43,6 +43,9 @@ const TeacherDashboard = () => {
   const [pendingRedemptions, setPendingRedemptions] = useState([]);
   const [loadingRedemptions, setLoadingRedemptions] = useState(false);
   const [studentEmotions, setStudentEmotions] = useState({}); // { studentId: { emotionData } }
+  const [selectedPeriod, setSelectedPeriod] = useState(7); // Default: 7 ngày
+  const [selectedAnalyticsPeriod, setSelectedAnalyticsPeriod] = useState(7); // Default: 7 ngày
+  const [selectedPDFPeriod, setSelectedPDFPeriod] = useState(7); // Default: 7 ngày cho PDF
 
   const [studentForm, setStudentForm] = useState({
     studentId: '',
@@ -264,9 +267,9 @@ const TeacherDashboard = () => {
     return null;
   };
 
-  const loadAnalytics = async () => {
+  const loadAnalytics = async (days = selectedAnalyticsPeriod) => {
     try {
-      const data = await getClassAnalytics(selectedClass);
+      const data = await getClassAnalytics(selectedClass, days);
       setAnalytics(data);
     } catch (error) {
       console.error('Không thể tải phân tích:', error);
@@ -311,10 +314,10 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleAIAnalysis = async () => {
+  const handleAIAnalysis = async (days = selectedPeriod) => {
     setLoadingAI(true);
     try {
-      const data = await getAIAnalysis(selectedClass);
+      const data = await getAIAnalysis(selectedClass, days);
       setAiAnalysis(data);
     } catch (error) {
       console.error('Lỗi phân tích AI:', error);
@@ -323,6 +326,22 @@ const TeacherDashboard = () => {
       setLoadingAI(false);
     }
   };
+
+  const handlePeriodChange = (days) => {
+    setSelectedPeriod(days);
+    // Không tự động phân tích, chỉ cập nhật state
+  };
+
+  const handleAnalyticsPeriodChange = (days) => {
+    setSelectedAnalyticsPeriod(days);
+    loadAnalytics(days); // Thống kê vẫn tự động load khi đổi thời gian
+  };
+
+  const handlePDFPeriodChange = (days) => {
+    setSelectedPDFPeriod(days);
+    // Không tự động xuất PDF, chỉ cập nhật state
+  };
+
 
   const handleCreateStudent = async (e) => {
     e.preventDefault();
@@ -384,9 +403,13 @@ const TeacherDashboard = () => {
     setStudentForm({ studentId: '', name: '', password: '' });
   };
 
-  const exportPDF = async () => {
+  const exportPDF = async (days = selectedPDFPeriod) => {
     try {
+      // Load analytics data theo thời gian đã chọn
+      const pdfAnalytics = await getClassAnalytics(selectedClass, days);
+      
       const className = classes.find(c => c._id === selectedClass)?.name || 'Lớp';
+      const periodText = days === 1 ? 'Hôm nay' : `${days} ngày qua`;
       
       // Tạo HTML content cho PDF
       const pdfContent = document.createElement('div');
@@ -410,12 +433,13 @@ const TeacherDashboard = () => {
           📊 BÁO CÁO CẢM XÚC HỌC SINH
         </h1>
         <p style="margin: 5px 0; font-size: 16px;">Lớp: ${className}</p>
+        <p style="margin: 5px 0; font-size: 14px;">Thời gian: ${periodText}</p>
         <p style="margin: 5px 0; font-size: 14px;">Ngày xuất báo cáo: ${new Date().toLocaleDateString('vi-VN')}</p>
       `;
       pdfContent.appendChild(header);
     
       // Tổng quan
-    if (analytics) {
+    if (pdfAnalytics) {
         const overviewSection = document.createElement('div');
         overviewSection.style.marginBottom = '30px';
         
@@ -443,7 +467,7 @@ const TeacherDashboard = () => {
         ];
 
         emotionStats.forEach(stat => {
-          const count = analytics.emotionDistribution[stat.emotion] || 0;
+          const count = pdfAnalytics.emotionDistribution[stat.emotion] || 0;
           const statBox = document.createElement('div');
           statBox.style.backgroundColor = stat.bgColor;
           statBox.style.border = `2px solid ${stat.color}`;
@@ -461,7 +485,7 @@ const TeacherDashboard = () => {
         overviewSection.appendChild(statsGrid);
 
         // Thông tin thêm
-        const totalEmotions = Object.values(analytics.emotionDistribution).reduce((sum, count) => sum + count, 0);
+        const totalEmotions = Object.values(pdfAnalytics.emotionDistribution).reduce((sum, count) => sum + count, 0);
         const infoDiv = document.createElement('div');
         infoDiv.style.backgroundColor = '#f9fafb';
         infoDiv.style.borderRadius = '8px';
@@ -478,7 +502,7 @@ const TeacherDashboard = () => {
       }
 
       // Bảng chi tiết
-      if (analytics) {
+      if (pdfAnalytics) {
         const tableSection = document.createElement('div');
         tableSection.style.marginBottom = '30px';
         
@@ -512,7 +536,7 @@ const TeacherDashboard = () => {
 
         // Table body
         const tbody = document.createElement('tbody');
-        const totalCount = Object.values(analytics.emotionDistribution).reduce((sum, count) => sum + count, 0);
+        const totalCount = Object.values(pdfAnalytics.emotionDistribution).reduce((sum, count) => sum + count, 0);
         const emotionLabels = {
           happy: '😊 Vui vẻ',
           neutral: '😐 Bình thường',
@@ -521,7 +545,7 @@ const TeacherDashboard = () => {
           tired: '😴 Mệt mỏi'
         };
 
-        Object.entries(analytics.emotionDistribution)
+        Object.entries(pdfAnalytics.emotionDistribution)
           .sort(([, a], [, b]) => b - a)
           .forEach(([emotion, count], index) => {
             const row = document.createElement('tr');
@@ -773,23 +797,78 @@ const TeacherDashboard = () => {
                 </select>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Period Selector for AI Analysis */}
+                <div className="flex items-center gap-2">
+                  <label className="text-white/80 text-sm font-medium whitespace-nowrap">Thời gian:</label>
+                  <div className="flex gap-1 bg-white/10 rounded-lg p-1">
+                    {[
+                      { label: 'Hôm nay', days: 1 },
+                      { label: '3 ngày', days: 3 },
+                      { label: '7 ngày', days: 7 },
+                      { label: '15 ngày', days: 15 },
+                      { label: '30 ngày', days: 30 }
+                    ].map(({ label, days }) => (
+                      <button
+                        key={days}
+                        onClick={() => handlePeriodChange(days)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                          selectedPeriod === days
+                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                            : 'text-white/70 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={handleAIAnalysis}
+                  onClick={() => handleAIAnalysis(selectedPeriod)}
                   disabled={loadingAI}
                   className="btn-primary flex items-center gap-2"
                 >
                   <Sparkles className="w-5 h-5" />
                   {loadingAI ? 'Đang phân tích...' : 'AI Phân Tích'}
                 </motion.button>
-                
+              </div>
+
+              {/* PDF Export Section */}
+              <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-white/10">
+                {/* Period Selector for PDF */}
+                <div className="flex items-center gap-2">
+                  <label className="text-white/80 text-sm font-medium whitespace-nowrap">Thời gian:</label>
+                  <div className="flex gap-1 bg-white/10 rounded-lg p-1">
+                    {[
+                      { label: 'Hôm nay', days: 1 },
+                      { label: '3 ngày', days: 3 },
+                      { label: '7 ngày', days: 7 },
+                      { label: '15 ngày', days: 15 },
+                      { label: '30 ngày', days: 30 }
+                    ].map(({ label, days }) => (
+                      <button
+                        key={days}
+                        onClick={() => handlePDFPeriodChange(days)}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                          selectedPDFPeriod === days
+                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                            : 'text-white/70 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={exportPDF}
-                  className="btn-secondary flex items-center gap-2"
+                  onClick={() => exportPDF(selectedPDFPeriod)}
+                  className="btn-primary flex items-center gap-2"
                 >
                   <FileText className="w-5 h-5" />
                   Xuất PDF
@@ -799,14 +878,75 @@ const TeacherDashboard = () => {
           </GlassCard>
 
           {/* Quick Stats */}
-          <GlassCard className="p-4">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-white mb-1">
-                {submissionRate}%
+          <GlassCard className="p-6">
+            <div className="flex flex-col items-center">
+              {/* Circular Progress */}
+              <div className="relative w-32 h-32 mb-4">
+                <svg className="transform -rotate-90 w-32 h-32">
+                  {/* Background circle */}
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="56"
+                    stroke="rgba(255, 255, 255, 0.1)"
+                    strokeWidth="12"
+                    fill="none"
+                  />
+                  {/* Progress circle */}
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="56"
+                    stroke="url(#submissionGradient)"
+                    strokeWidth="12"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 56}`}
+                    strokeDashoffset={`${2 * Math.PI * 56 * (1 - submissionRate / 100)}`}
+                    className="transition-all duration-1000 ease-out"
+                  />
+                  <defs>
+                    <linearGradient id="submissionGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#8b5cf6" />
+                      <stop offset="100%" stopColor="#ec4899" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                {/* Percentage text in center */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-white">
+                      {submissionRate}%
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="text-white/70 text-sm">Tỷ lệ gửi hôm nay</div>
-              <div className="mt-2 text-white/60 text-xs">
-                {submittedCount}/{students.length} học sinh
+
+              {/* Label and count */}
+              <div className="text-center">
+                <div className="text-white/80 text-sm font-medium mb-1">
+                  Tỷ lệ gửi hôm nay
+                </div>
+                <div className="text-white/60 text-xs">
+                  {submittedCount}/{students.length} học sinh
+                </div>
+              </div>
+
+              {/* Linear Progress Bar */}
+              <div className="w-full mt-4">
+                <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${submissionRate}%` }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full shadow-lg"
+                  />
+                </div>
+                <div className="flex justify-between mt-2 text-xs text-white/60">
+                  <span>0%</span>
+                  <span className="font-medium text-white/80">{submissionRate}%</span>
+                  <span>100%</span>
+                </div>
               </div>
             </div>
           </GlassCard>
@@ -1186,9 +1326,37 @@ const TeacherDashboard = () => {
               className="space-y-6"
             >
               <GlassCard className="p-6">
-                <h3 className="text-2xl font-bold text-white mb-6">
-                  Thống Kê Chi Tiết
-                </h3>
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                  <h3 className="text-2xl font-bold text-white">
+                    Thống Kê Chi Tiết
+                  </h3>
+                  
+                  {/* Period Selector for Analytics */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-white/80 text-sm font-medium whitespace-nowrap">Thời gian:</label>
+                    <div className="flex gap-1 bg-white/10 rounded-lg p-1">
+                      {[
+                        { label: 'Hôm nay', days: 1 },
+                        { label: '3 ngày', days: 3 },
+                        { label: '7 ngày', days: 7 },
+                        { label: '15 ngày', days: 15 },
+                        { label: '30 ngày', days: 30 }
+                      ].map(({ label, days }) => (
+                        <button
+                          key={days}
+                          onClick={() => handleAnalyticsPeriodChange(days)}
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                            selectedAnalyticsPeriod === days
+                              ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
+                              : 'text-white/70 hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div className="text-center glass-card p-4 rounded-xl">
